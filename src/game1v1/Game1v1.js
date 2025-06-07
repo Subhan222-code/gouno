@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import kembali from '../assets/kembali.png';
 import { useLocation } from 'react-router-dom';
 
 const turnOrderInitial = [0, 1];
+
+const GAME_TIME_LIMIT = 300; // 5 minutes
 
 function Game1v1() {
   const location = useLocation();
@@ -25,27 +27,48 @@ function Game1v1() {
   const [unoCalled, setUnoCalled] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const [gameStarted, setGameStarted] = useState(false);
-  const [dealtCards, setDealtCards] = useState([]); // State for dealing animation
+  const [dealtCards, setDealtCards] = useState([]);
+
+  // State for player's total game time (countdown)
+  const [playerGameTime, setPlayerGameTime] = useState(GAME_TIME_LIMIT);
 
   const turn = turnOrder[turnIndex];
   const topCard = discardPile[discardPile.length - 1];
 
   useEffect(() => {
     setGameStarted(false);
+    setPlayerGameTime(GAME_TIME_LIMIT); // Reset player time at component mount/remount
     setCountdown(5);
     const countdownInterval = setInterval(() => {
       setCountdown((prev) => {
         if (prev === 1) {
           clearInterval(countdownInterval);
-          setGameStarted(true);
-          startGame(); // Initialize game assets and start dealing animation
+          setGameStarted(true); // Mark game as started
+          startGame(); // Initialize game assets
         }
         return prev - 1;
       });
     }, 1000);
-
     return () => clearInterval(countdownInterval);
   }, []);
+
+  // useEffect for player's total game time countdown
+  useEffect(() => {
+    let interval = null;
+    if (gameStarted && !winner && playerGameTime > 0) { // Timer runs if game is active, no winner, and time remaining
+      interval = setInterval(() => {
+        setPlayerGameTime(prevTime => prevTime - 1);
+      }, 1000);
+    } else if (playerGameTime === 0 && gameStarted && !winner) {
+      setWinner('Bot'); // Bot wins if player runs out of time
+      alert('Time\'s up! Bot wins!');
+      clearInterval(interval);
+    } else if (winner || !gameStarted) { // Stop timer if game ends or hasn't started
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval); // Cleanup
+  }, [gameStarted, winner, playerGameTime]);
+
 
   useEffect(() => {
     if (gameStarted && turn !== 0 && !winner) {
@@ -63,15 +86,16 @@ function Game1v1() {
     const initialBotHand = [];
     const cardsToDeal = [];
 
-    // Extract initial cards for dealing animation
+    // Reset player time for a new game
+    setPlayerGameTime(GAME_TIME_LIMIT);
+
     for (let i = 0; i < 7; i++) {
       initialPlayerHand.push(newDeck.pop());
       initialBotHand.push(newDeck.pop());
     }
     const initialTopCard = newDeck.pop();
-
     setDeck(newDeck);
-    setDiscardPile([]); // Start empty for animation
+    setDiscardPile([]);
     setPlayerHand([]);
     setBotHand([]);
     setTurnIndex(0);
@@ -81,28 +105,21 @@ function Game1v1() {
     setShowColorPicker(false);
     setScores(null);
     setPendingDraw({ count: 0, type: null });
-    setUnoCalled(false);
 
-    // Prepare cards for animation, alternating between player and bot
     for (let i = 0; i < 7; i++) {
       cardsToDeal.push({ card: initialPlayerHand[i], target: 'player' });
       cardsToDeal.push({ card: initialBotHand[i], target: 'bot' });
     }
     cardsToDeal.push({ card: initialTopCard, target: 'discard' });
-
-    setDealtCards(cardsToDeal); // Set cards to be animated
-
-    // Start sequential dealing animation
+    setDealtCards(cardsToDeal);
     let playerTempHand = [];
     let botTempHand = [];
     let currentDiscardPile = [];
     let delay = 0;
-    // Increased delay between each card deal for slow-motion
     const cardAnimationDelay = 250;
-
     cardsToDeal.forEach((item) => {
       setTimeout(() => {
-        setDealtCards((prev) => prev.slice(1)); // Remove the first card in dealtCards array (optimistic update for visual effect)
+        setDealtCards((prev) => prev.slice(1));
         if (item.target === 'player') {
           playerTempHand.push(item.card);
           setPlayerHand([...playerTempHand]);
@@ -122,30 +139,27 @@ function Game1v1() {
     const colors = ['red', 'blue', 'green', 'yellow'];
     const values = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'skip', '+2'];
     const deck = [];
-
     for (let color of colors) {
       for (let value of values) {
         deck.push({ color, value });
         if (value !== '0') deck.push({ color, value });
       }
     }
-
     for (let i = 0; i < 4; i++) {
       deck.push({ color: 'black', value: 'wild' });
       deck.push({ color: 'black', value: '+4' });
     }
-
     for (let i = deck.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [deck[i], deck[j]] = [deck[j], deck[i]];
     }
-
     return deck;
   }
 
   function isPlayable(card, topCard) {
-    if (!topCard) return true; // Allow playing any card if discard pile is empty (e.g., first card)
-    if (card.value === pendingDraw.type) return true;
+    if (!topCard) return true;
+    if (card.value === pendingDraw.type && pendingDraw.count > 0) return true;
+    if (pendingDraw.count > 0 && card.value !== pendingDraw.type && card.color !== 'black') return false; // Added exception for wild cards
     return (
       card.color === topCard.color ||
       card.value === topCard.value ||
@@ -156,18 +170,15 @@ function Game1v1() {
   function playCard(card, index) {
     if (turn !== 0 || winner || !gameStarted) return;
     if (!isPlayable(card, topCard)) return;
-    if (pendingDraw.count && card.value !== pendingDraw.type) return;
-
     if (playerHand.length === 2 && !unoCalled) {
       applyPenalty(username);
     }
-
     if (card.color === 'black') {
       setPendingCard({ card, index });
       setShowColorPicker(true);
       setSelectedColorCallback(() => (color) => {
-        card.color = color;
-        finalizePlayCard(card, index);
+        const chosenCard = { ...card, color: color };
+        finalizePlayCard(chosenCard, index);
         setShowColorPicker(false);
         setPendingCard(null);
       });
@@ -181,18 +192,14 @@ function Game1v1() {
     newHand.splice(index, 1);
     setPlayerHand(newHand);
     setAnimatingCard(card);
-
     setUnoCalled(false);
-
     const isStackable = card.value === '+2' || card.value === '+4';
     const stackMatch = pendingDraw.type === card.value;
-
     setTimeout(() => {
       setDiscardPile((prev) => [...prev, card]);
       setAnimatingCard(null);
-
       if (isStackable) {
-        if (pendingDraw.count && stackMatch) {
+        if (pendingDraw.count > 0 && stackMatch) {
           setPendingDraw((prev) => ({
             count: prev.count + (card.value === '+2' ? 2 : 4),
             type: card.value,
@@ -203,65 +210,69 @@ function Game1v1() {
       } else {
         setPendingDraw({ count: 0, type: null });
       }
-
-      checkWinner(newHand, username);
-      setTurnIndex((prev) => (prev + 1) % turnOrder.length);
+      if (newHand.length === 0) {
+        checkWinner(newHand, username);
+      } else {
+        setTurnIndex((prev) => (prev + 1) % turnOrder.length);
+      }
     }, 500);
   }
 
   function drawCardPlayer() {
-    if (turn !== 0 || winner || deck.length === 0 || !gameStarted) return;
-
-    if (pendingDraw.count) {
+    if (turn !== 0 || winner || !gameStarted) return;
+    if (pendingDraw.count > 0) {
       const newCards = [];
+      let currentDeck = [...deck];
       for (let i = 0; i < pendingDraw.count; i++) {
-        if (deck.length > 0) newCards.push(deck.pop());
+        if (currentDeck.length > 0) {
+          newCards.push(currentDeck.pop());
+        } else break;
       }
       setPlayerHand((prev) => [...prev, ...newCards]);
-      setDeck([...deck]);
+      setDeck(currentDeck);
       setPendingDraw({ count: 0, type: null });
-      setTurnIndex((prev) => (prev + 1) % turnOrder.length);
-      return;
+    } else if (deck.length > 0) {
+      const newCard = deck.pop();
+      setPlayerHand([...playerHand, newCard]);
+      setDeck([...deck]);
+    } else {
+      console.log("Deck is empty, cannot draw.");
     }
-
-    const newCard = deck.pop();
-    setPlayerHand([...playerHand, newCard]);
-    setDeck([...deck]);
     setTurnIndex((prev) => (prev + 1) % turnOrder.length);
   }
 
   function botPlay() {
-    if (!gameStarted) return;
-
+    if (!gameStarted || winner) return;
     let hand = [...botHand];
-    const playableIndex = hand.findIndex(
-      (card) =>
-        isPlayable(card, topCard) &&
-        (!pendingDraw.count || card.value === pendingDraw.type)
+    const playableCards = hand.filter(card =>
+      isPlayable(card, topCard) &&
+      (!pendingDraw.count || card.value === pendingDraw.type || card.color === 'black')
     );
-
-    if (playableIndex !== -1) {
-      const playedCard = hand.splice(playableIndex, 1)[0];
+    let playedCard = null;
+    if (playableCards.length > 0) {
+      const stackablePlay = playableCards.find(card => card.value === pendingDraw.type);
+      if (stackablePlay) {
+        playedCard = stackablePlay;
+      } else if (pendingDraw.count > 0 && playableCards.some(c => c.color === 'black')) {
+        playedCard = playableCards.find(c => c.color === 'black');
+      } else {
+        playedCard = playableCards.find(c => c.color !== 'black') || playableCards[0];
+      }
+      const playableIndex = hand.findIndex(card => card === playedCard);
+      hand.splice(playableIndex, 1);
       if (playedCard.color === 'black') {
         playedCard.color = ['red', 'blue', 'green', 'yellow'][Math.floor(Math.random() * 4)];
       }
-
-      if (hand.length === 1) {
-        setUnoCalled(true);
-      }
-
+      setUnoCalled(false);
       setBotHand(hand);
       setAnimatingCard(playedCard);
-
       const isStackable = playedCard.value === '+2' || playedCard.value === '+4';
       const stackMatch = pendingDraw.type === playedCard.value;
-
       setTimeout(() => {
         setDiscardPile((prev) => [...prev, playedCard]);
         setAnimatingCard(null);
-
         if (isStackable) {
-          if (pendingDraw.count && stackMatch) {
+          if (pendingDraw.count > 0 && stackMatch) {
             setPendingDraw((prev) => ({
               count: prev.count + (playedCard.value === '+2' ? 2 : 4),
               type: playedCard.value,
@@ -272,24 +283,28 @@ function Game1v1() {
         } else {
           setPendingDraw({ count: 0, type: null });
         }
-
-        checkWinner(hand, `Bot`);
-        setTurnIndex((prev) => (prev + 1) % turnOrder.length);
-        setUnoCalled(false);
+        if (hand.length === 0) {
+          checkWinner(hand, `Bot`);
+        } else {
+          setTurnIndex((prev) => (prev + 1) % turnOrder.length);
+        }
       }, 500);
-    } else if (pendingDraw.count) {
+    } else if (pendingDraw.count > 0) {
       const newCards = [];
+      let currentDeck = [...deck];
       for (let i = 0; i < pendingDraw.count; i++) {
-        if (deck.length > 0) newCards.push(deck.pop());
+        if (currentDeck.length > 0) newCards.push(currentDeck.pop());
+        else break;
       }
       setBotHand((prev) => [...prev, ...newCards]);
-      setDeck([...deck]);
+      setDeck(currentDeck);
       setPendingDraw({ count: 0, type: null });
       setTurnIndex((prev) => (prev + 1) % turnOrder.length);
     } else if (deck.length > 0) {
-      hand.push(deck.pop());
+      let currentDeck = [...deck];
+      hand.push(currentDeck.pop());
       setBotHand(hand);
-      setDeck([...deck]);
+      setDeck(currentDeck);
       setTurnIndex((prev) => (prev + 1) % turnOrder.length);
     } else {
       setTurnIndex((prev) => (prev + 1) % turnOrder.length);
@@ -298,25 +313,27 @@ function Game1v1() {
 
   function applyPenalty(player) {
     const penaltyCards = [];
+    let currentDeck = [...deck];
     for (let i = 0; i < 2; i++) {
-      if (deck.length > 0) {
-        penaltyCards.push(deck.pop());
+      if (currentDeck.length > 0) {
+        penaltyCards.push(currentDeck.pop());
       }
     }
     if (player === username) {
       setPlayerHand((prev) => [...prev, ...penaltyCards]);
-      alert('You forgot to call UNO! 2 cards added to your hand.');
     } else if (player === 'Bot') {
       setBotHand((prev) => [...prev, ...penaltyCards]);
       alert('Bot forgot to call UNO! 2 cards added to Bot hand.');
     }
-    setDeck([...deck]);
+    setDeck(currentDeck);
   }
 
   function handleUnoCall() {
-    if (turn === 0 && playerHand.length === 1 && gameStarted) {
+    if (turn === 0 && playerHand.length === 1 && gameStarted && !unoCalled) {
       setUnoCalled(true);
       alert('UNO!');
+    } else if (turn === 0 && playerHand.length !== 1 && unoCalled) {
+      setUnoCalled(false);
     }
   }
 
@@ -330,7 +347,6 @@ function Game1v1() {
   function calculateScores(winnerName) {
     let playerFinalScore = 0;
     let botFinalScore = 0;
-
     if (winnerName === username) {
       playerFinalScore = 10;
       botFinalScore = Math.min(5, botHand.reduce((sum, card) => sum + cardValue(card), 0));
@@ -338,13 +354,7 @@ function Game1v1() {
       botFinalScore = 10;
       playerFinalScore = Math.min(5, playerHand.reduce((sum, card) => sum + cardValue(card), 0));
     }
-
-    const finalScores = {
-      winner: winnerName,
-      player: playerFinalScore,
-      bot: botFinalScore,
-    };
-
+    const finalScores = { winner: winnerName, player: playerFinalScore, bot: botFinalScore };
     setScores(finalScores);
     localStorage.setItem('lastGameScore', JSON.stringify(finalScores));
   }
@@ -358,13 +368,26 @@ function Game1v1() {
     return 0;
   }
 
+  // Function to format time MM:SS
+  function formatTime(totalSeconds) {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
   return (
     <div style={styles.container}>
       <button onClick={handleBack} style={styles.backButton}>
         <img src={kembali} alt="Kembali" style={styles.backIcon} />
       </button>
 
-      {/* Countdown overlay */}
+      {/* Display Total Player Game Time (Countdown) */}
+      {gameStarted && (
+        <div style={styles.playerGameTimeDisplay}>
+          Waktu Tersisa: {formatTime(playerGameTime)}
+        </div>
+      )}
+
       {!gameStarted && (
         <div style={styles.countdownOverlay}>
           <p style={styles.countdownText}>{countdown}</p>
@@ -399,7 +422,6 @@ function Game1v1() {
         </div>
       )}
 
-      {/* Bot Hand Container (showing faced-down cards for bot) */}
       <div style={{ ...styles.botHandContainer, top: 20, left: '50%', transform: 'translateX(-50%)', position: 'absolute' }}>
         <div style={styles.cardRow}>
           {botHand.map((_, i) => (
@@ -408,46 +430,29 @@ function Game1v1() {
         </div>
       </div>
 
-      {/* Center Area (Discard Pile and Draw Deck) */}
       <div style={styles.centerArea}>
-        {/* Animated dealing cards */}
         <AnimatePresence>
           {dealtCards.map((item, index) => (
             <motion.div
-              key={`dealt-${index}`} // Unique key for each animating card
-              initial={{
-                x: 0,
-                y: 0,
-                opacity: 1,
-                scale: 0.8,
-                rotate: Math.random() * 20 - 10, // Slight random rotation for visual appeal
-              }}
+              key={`dealt-${index}`}
+              initial={{ x: 0, y: 0, opacity: 1, scale: 0.8, rotate: Math.random() * 20 - 10 }}
               animate={{
-                // Target position based on who receives the card
                 x: item.target === 'player' ? -150 + index * 20 : (item.target === 'bot' ? 150 - index * 20 : 0),
                 y: item.target === 'player' ? 200 : (item.target === 'bot' ? -200 : 0),
-                opacity: 1,
-                scale: 1,
-                rotate: 0,
+                opacity: 1, scale: 1, rotate: 0,
               }}
-              exit={{ opacity: 0, scale: 0 }} // Cards disappear after reaching destination
-              // Increased transition duration for slower individual card movement
+              exit={{ opacity: 0, scale: 0 }}
               transition={{ duration: 0.8, ease: 'easeOut' }}
               style={{
-                ...styles.discardPile, // Use discardPile styles for general card appearance
-                position: 'absolute',
-                // For dealt cards, set background to gray to represent back of card
+                ...styles.discardPile, position: 'absolute',
                 backgroundColor: item.target === 'discard' ? item.card.color : 'gray',
-                zIndex: 100 - index, // Stack cards correctly during animation
+                zIndex: 100 - index,
               }}
             >
-              {/* Only show value for the initial discard card */}
               {item.target === 'discard' ? item.card.value : ''}
             </motion.div>
           ))}
         </AnimatePresence>
-
-        {/* Card Animation (played card flying to discard pile) */}
         <AnimatePresence>
           {animatingCard && (
             <motion.div
@@ -459,43 +464,25 @@ function Game1v1() {
               style={{
                 ...styles.discardPile,
                 backgroundColor: animatingCard.color,
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                margin: 'auto',
-                zIndex: 10,
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, margin: 'auto', zIndex: 10,
               }}
             >
               {animatingCard.value}
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Discard Pile (Top Card) */}
-        <div
-          style={{
-            ...styles.discardPile,
-            backgroundColor: topCard?.color,
-            position: 'relative',
-            zIndex: 5,
-          }}
-        >
+        <div style={{ ...styles.discardPile, backgroundColor: topCard?.color, position: 'relative', zIndex: 5 }}>
           {topCard?.value}
         </div>
-
-        {/* Draw Card Button */}
         <button
           onClick={drawCardPlayer}
-          disabled={turn !== 0 || winner || deck.length === 0 || !gameStarted}
+          disabled={turn !== 0 || winner || !gameStarted || (pendingDraw.count > 0 && pendingDraw.type && playerHand.some(card => card.value === pendingDraw.type && card.color !== 'black'))}
           style={styles.drawButton}
         >
           {pendingDraw.count ? `Draw ${pendingDraw.count}` : 'Draw Card'}
         </button>
       </div>
 
-      {/* Player's Hand */}
       <div style={styles.playerHand}>
         {playerHand.map((card, i) => (
           <div
@@ -505,7 +492,7 @@ function Game1v1() {
               ...styles.playerCard,
               backgroundColor: card.color,
               cursor: winner || turn !== 0 || !isPlayable(card, topCard) || !gameStarted ? 'default' : 'pointer',
-              opacity: isPlayable(card, topCard) && gameStarted ? 1 : 0.5,
+              opacity: isPlayable(card, topCard) && gameStarted && turn === 0 ? 1 : 0.6,
             }}
           >
             {card.value}
@@ -513,7 +500,6 @@ function Game1v1() {
         ))}
       </div>
 
-      {/* UNO Button */}
       {playerHand.length === 1 && turn === 0 && !unoCalled && gameStarted && (
         <button onClick={handleUnoCall} style={styles.unoButton}>
           UNO!
@@ -524,12 +510,43 @@ function Game1v1() {
 }
 
 const styles = {
+  container: { /* ... */ },
+  backButton: { /* ... */ },
+  backIcon: { /* ... */ },
+  playerHand: { /* ... */ },
+  playerCard: { /* ... */ },
+  botHandContainer: { /* ... */ },
+  cardRow: { /* ... */ },
+  centerArea: { /* ... */ },
+  discardPile: { /* ... */ },
+  drawButton: { /* ... */ },
+  winnerBanner: { /* ... */ },
+  colorPicker: { /* ... */ },
+  colorButton: { /* ... */ },
+  unoButton: { /* ... */ },
+  countdownOverlay: { /* ... */ },
+  countdownText: { /* ... */ },
+  playerGameTimeDisplay: {
+    position: 'absolute',
+    top: '20px',
+    right: '20px',
+    padding: '8px 12px',
+    background: 'rgba(0,0,0,0.6)',
+    color: 'white',
+    borderRadius: '6px',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    zIndex: 25,
+  },
+};
+
+Object.assign(styles, {
   container: {
     position: 'relative',
     height: '100vh',
     background: '#228',
     color: 'white',
-    fontFamily: 'Arial',
+    fontFamily: 'Arial, sans-serif',
     overflow: 'hidden',
   },
   backButton: {
@@ -666,7 +683,7 @@ const styles = {
     fontSize: 72,
     fontWeight: 'bold',
     color: 'white',
-  },
-};
+  }
+});
 
 export default Game1v1;

@@ -3,9 +3,9 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './Home/Home';
 import Play from './play/Play';
 import BotGame from './play/BotGame';
-import Game1v1 from './play/Game1v1'; 
+import Game1v1 from './game1v1/Game1v1'; 
 import Game1v3 from './play/Game1v3';
-import Multiplayer from './pages/Multiplayer';  
+import Multiplayer from './Multiplayer/Multiplayer';  
 import Login from './pages/Login';  
 import Register from './pages/Register';  
 

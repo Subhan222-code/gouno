@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // useLocation is not used in the provided code
+import { useNavigate } from 'react-router-dom';
+import { db } from '../firebase';
+import { collection, addDoc, getDocs, query, orderBy, limit } from 'firebase/firestore';
 
 import croppedImage from '../assets/cropped.png';
 import tombol_bot from '../assets/mulai.png';
 import MULTIPLAYER from '../assets/logo.png';
-import Learderboard from '../assets/learderboard_uno.png';
+import Learderboard from '../assets/leaderboard_uno.png';
 
 const Play = () => {
   const navigate = useNavigate();
@@ -13,10 +15,9 @@ const Play = () => {
   const [userProfile, setUserProfile] = useState({ username: '', score: 0 });
   const [leaderboardEntries, setLeaderboardEntries] = useState([]);
 
-  // LeaderboardList component moved inside Play component
   const LeaderboardList = ({ entries, onClose }) => (
     <div
-      onClick={(e) => e.stopPropagation()} // Stop click from bubbling up and closing modal
+      onClick={(e) => e.stopPropagation()}
       style={{
         backgroundColor: 'white',
         borderRadius: 16,
@@ -73,6 +74,7 @@ const Play = () => {
   useEffect(() => {
     const storedProfile = localStorage.getItem('userProfile');
     let currentProfile = { username: '', score: 0 };
+
     if (storedProfile) {
       currentProfile = JSON.parse(storedProfile);
     } else {
@@ -81,24 +83,43 @@ const Play = () => {
     }
 
     const lastGameScore = localStorage.getItem('lastGameScore');
-    if (lastGameScore) {
-      const parsedScore = JSON.parse(lastGameScore);
-      if (parsedScore.winner === currentProfile.username) {
-        currentProfile.score += parsedScore.player;
+    const updateAndSaveLeaderboard = async () => {
+      if (lastGameScore) {
+        const parsedScore = JSON.parse(lastGameScore);
+        if (parsedScore.winner === currentProfile.username) {
+          currentProfile.score += parsedScore.player;
+
+          try {
+            await addDoc(collection(db, 'leaderboard'), {
+              username: currentProfile.username,
+              score: parsedScore.player,
+              timestamp: new Date(),
+            });
+          } catch (error) {
+            console.error('Error adding to leaderboard:', error);
+          }
+        }
+        localStorage.removeItem('lastGameScore');
       }
-      localStorage.removeItem('lastGameScore');
-    }
 
-    setUserProfile(currentProfile);
-    localStorage.setItem('userProfile', JSON.stringify(currentProfile));
+      setUserProfile(currentProfile);
+      localStorage.setItem('userProfile', JSON.stringify(currentProfile));
 
-    setLeaderboardEntries([
-      { username: 'Alice', score: 150 },
-      { username: 'Bob', score: 120 },
-      { username: 'Charlie', score: 100 },
-      { username: 'David', score: 90 },
-      { username: 'Eve', score: 80 },
-    ]);
+      try {
+        const q = query(
+          collection(db, 'leaderboard'),
+          orderBy('score', 'desc'),
+          limit(10)
+        );
+        const snapshot = await getDocs(q);
+        const entries = snapshot.docs.map(doc => doc.data());
+        setLeaderboardEntries(entries);
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+      }
+    };
+
+    updateAndSaveLeaderboard();
   }, [navigate]);
 
   const handleLogout = () => {
@@ -123,7 +144,7 @@ const Play = () => {
         gap: 20,
       }}
     >
-      {/* Profil Info */}
+      {/* User Info */}
       <div
         style={{
           position: 'absolute',
@@ -136,7 +157,6 @@ const Play = () => {
           gap: 8,
         }}
       >
-        {/* Username */}
         <div
           onClick={() => setShowLogout(!showLogout)}
           style={{
@@ -152,12 +172,12 @@ const Play = () => {
             userSelect: 'none',
             fontSize: 16,
             minWidth: 100,
+            justifyContent: 'center',
           }}
         >
           {userProfile.username || 'Guest'}
         </div>
 
-        {/* Score */}
         <div
           style={{
             background: 'white',
@@ -174,7 +194,6 @@ const Play = () => {
           Score: {userProfile.score ?? 0}
         </div>
 
-        {/* Logout Modal */}
         {showLogout && (
           <div
             onClick={(e) => {
@@ -183,7 +202,7 @@ const Play = () => {
             }}
             style={{
               position: 'absolute',
-              top: 56,
+              top: 56 + 8,
               left: 0,
               backgroundColor: '#fff',
               borderRadius: 12,
@@ -203,14 +222,17 @@ const Play = () => {
         )}
       </div>
 
-      {/* Tombol Mode Game */}
+      {/* Button Bot Mode */}
       <div style={{ display: 'flex', flexDirection: 'row', gap: 20 }}>
-        <div onClick={() => navigate('/bot', { state: { username: userProfile.username } })} style={{ cursor: 'pointer' }}>
+        <div
+          onClick={() => navigate('/bot', { state: { username: userProfile.username } })}
+          style={{ cursor: 'pointer' }}
+        >
           <img src={tombol_bot} alt="Bot Mode" style={{ width: 160, borderRadius: 16 }} />
         </div>
       </div>
 
-      {/*  Leaderboard logo dan Multiplayer logo */}
+      {/* Leaderboard and Multiplayer */}
       <div
         style={{
           position: 'absolute',
@@ -223,34 +245,24 @@ const Play = () => {
           zIndex: 200,
         }}
       >
-        {/* Logo Leaderboard */}
         <div
           style={{ cursor: 'pointer', userSelect: 'none' }}
           onClick={() => setShowLeaderboard(true)}
           title="Show Leaderboard"
         >
-          <img
-            src={Learderboard}
-            alt="Leaderboard"
-            style={{ width: 120, borderRadius: 16 }}
-          />
+          <img src={Learderboard} alt="Leaderboard" style={{ width: 120, borderRadius: 16 }} />
         </div>
 
-        {/* Logo Multiplayer */}
         <div
           style={{ cursor: 'pointer' }}
           onClick={() => navigate('/multiplayer', { state: { username: userProfile.username } })}
           title="Go to Multiplayer"
         >
-          <img
-            src={MULTIPLAYER}
-            alt="Multiplayer Mode"
-            style={{ width: 120, borderRadius: 16 }}
-          />
+          <img src={MULTIPLAYER} alt="Multiplayer Mode" style={{ width: 120, borderRadius: 16 }} />
         </div>
       </div>
 
-      {/* Overlay Leaderboard di tengah layar */}
+      {/* Overlay Leaderboard */}
       {showLeaderboard && (
         <div
           onClick={() => setShowLeaderboard(false)}
