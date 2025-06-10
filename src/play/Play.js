@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
-import { collection, addDoc, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  getDocs,
+  query,
+  orderBy,
+  limit,
+  increment, // Penting untuk update skor atomik
+} from 'firebase/firestore';
 
 import croppedImage from '../assets/cropped.png';
 import tombol_bot from '../assets/mulai.png';
@@ -12,9 +22,11 @@ const Play = () => {
   const navigate = useNavigate();
   const [showLogout, setShowLogout] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [userProfile, setUserProfile] = useState({ username: '', score: 0 });
+  // Mengubah 'score' menjadi 'totalScore' untuk kejelasan
+  const [userProfile, setUserProfile] = useState({ username: '', totalScore: 0 });
   const [leaderboardEntries, setLeaderboardEntries] = useState([]);
 
+  // Komponen LeaderboardList tetap sama, hanya menampilkan totalScore
   const LeaderboardList = ({ entries, onClose }) => (
     <div
       onClick={(e) => e.stopPropagation()}
@@ -47,24 +59,26 @@ const Play = () => {
       >
         ×
       </button>
-      <h2 style={{ margin: 0, marginBottom: 12, textAlign: 'center' }}>Leaderboard</h2>
+      <h2 style={{ margin: 0, marginBottom: 12, textAlign: 'center', color: '#333' }}>Leaderboard</h2>
       {entries.length === 0 ? (
-        <div style={{ textAlign: 'center', fontStyle: 'italic' }}>No entries</div>
+        <div style={{ textAlign: 'center', fontStyle: 'italic', color: '#666' }}>Tidak ada entri</div>
       ) : (
         entries.map((entry, i) => (
           <div
-            key={i}
+            key={entry.username || i} // Gunakan username sebagai key jika unik, atau fallback ke index
             style={{
               padding: '6px 0',
-              borderBottom: i !== entries.length - 1 ? '1px solid #ccc' : 'none',
+              borderBottom: i !== entries.length - 1 ? '1px solid #eee' : 'none',
               display: 'flex',
               justifyContent: 'space-between',
               fontWeight: 'bold',
               fontSize: 16,
+              color: '#444',
             }}
           >
+            {/* Menggunakan entry.username untuk menampilkan nama pemain */}
             <span>{entry.username}</span>
-            <span>{entry.score}</span>
+            <span>{entry.totalScore ?? 0}</span> {/* Menampilkan totalScore */}
           </div>
         ))
       )}
@@ -73,7 +87,7 @@ const Play = () => {
 
   useEffect(() => {
     const storedProfile = localStorage.getItem('userProfile');
-    let currentProfile = { username: '', score: 0 };
+    let currentProfile = { username: '', totalScore: 0 }; // Inisialisasi dengan totalScore
 
     if (storedProfile) {
       currentProfile = JSON.parse(storedProfile);
@@ -83,44 +97,60 @@ const Play = () => {
     }
 
     const lastGameScore = localStorage.getItem('lastGameScore');
-    const updateAndSaveLeaderboard = async () => {
-      if (lastGameScore) {
-        const parsedScore = JSON.parse(lastGameScore);
-        if (parsedScore.winner === currentProfile.username) {
-          currentProfile.score += parsedScore.player;
 
-          try {
-            await addDoc(collection(db, 'leaderboard'), {
-              username: currentProfile.username,
-              score: parsedScore.player,
-              timestamp: new Date(),
-            });
-          } catch (error) {
-            console.error('Error adding to leaderboard:', error);
-          }
-        }
-        localStorage.removeItem('lastGameScore');
+    const updateAndFetchProfileAndLeaderboard = async () => {
+      // 1. Ambil skor total pengguna saat ini dari Firestore
+      // Asumsi username adalah ID dokumen di koleksi 'users'
+      const userRef = doc(db, 'users', currentProfile.username);
+      const userDoc = await getDoc(userRef);
+
+      if (userDoc.exists()) {
+        currentProfile.totalScore = userDoc.data().totalScore || 0;
+      } else {
+        // Jika pengguna belum ada di Firestore, buat dokumen baru dengan skor awal 0
+        await setDoc(userRef, { username: currentProfile.username, totalScore: 0 });
       }
 
-      setUserProfile(currentProfile);
-      localStorage.setItem('userProfile', JSON.stringify(currentProfile));
+      // 2. Perbarui skor pengguna berdasarkan hasil game terakhir
+      if (lastGameScore) {
+        const parsedScore = JSON.parse(lastGameScore);
+        // Pastikan winner di game terakhir adalah username yang sedang login
+        if (parsedScore.winner === currentProfile.username) {
+          const scoreToAdd = parsedScore.playerScore; // Ambil skor pemain dari game terakhir (bukan parsedScore.player)
 
+          try {
+            // Perbarui skor total pengguna secara atomik di Firestore
+            await setDoc(userRef, { totalScore: increment(scoreToAdd) }, { merge: true });
+            currentProfile.totalScore += scoreToAdd; // Perbarui state lokal segera
+            console.log(`Berhasil memperbarui skor total ${currentProfile.username} sebesar ${scoreToAdd}`);
+          } catch (error) {
+            console.error('Gagal memperbarui skor total pengguna:', error);
+          }
+        }
+        localStorage.removeItem('lastGameScore'); // Hapus skor game terakhir
+      }
+
+      // 3. Setel state profil pengguna lokal
+      setUserProfile(currentProfile);
+      localStorage.setItem('userProfile', JSON.stringify(currentProfile)); // Perbarui localStorage
+
+      // 4. Ambil leaderboard yang diperbarui dari koleksi 'users'
       try {
         const q = query(
-          collection(db, 'leaderboard'),
-          orderBy('score', 'desc'),
+          collection(db, 'users'), // Ambil data dari koleksi 'users'
+          orderBy('totalScore', 'desc'),
           limit(10)
         );
         const snapshot = await getDocs(q);
-        const entries = snapshot.docs.map(doc => doc.data());
+        const entries = snapshot.docs.map((doc) => doc.data());
         setLeaderboardEntries(entries);
       } catch (error) {
-        console.error('Error fetching leaderboard:', error);
+        console.error('Gagal mengambil leaderboard:', error);
       }
     };
 
-    updateAndSaveLeaderboard();
-  }, [navigate]);
+    updateAndFetchProfileAndLeaderboard();
+  }, [navigate]); // navigate adalah dependency, tapi identitasnya stabil
 
   const handleLogout = () => {
     localStorage.removeItem('userProfile');
@@ -144,7 +174,7 @@ const Play = () => {
         gap: 20,
       }}
     >
-      {/* User Info */}
+      {/* Informasi Pengguna */}
       <div
         style={{
           position: 'absolute',
@@ -191,7 +221,7 @@ const Play = () => {
             textAlign: 'center',
           }}
         >
-          Score: {userProfile.score ?? 0}
+          Skor: {userProfile.totalScore ?? 0} {/* Menampilkan totalScore */}
         </div>
 
         {showLogout && (
@@ -222,17 +252,17 @@ const Play = () => {
         )}
       </div>
 
-      {/* Button Bot Mode */}
+      {/* Tombol Mode Bot */}
       <div style={{ display: 'flex', flexDirection: 'row', gap: 20 }}>
         <div
           onClick={() => navigate('/bot', { state: { username: userProfile.username } })}
           style={{ cursor: 'pointer' }}
         >
-          <img src={tombol_bot} alt="Bot Mode" style={{ width: 160, borderRadius: 16 }} />
+          <img src={tombol_bot} alt="Mode Bot" style={{ width: 160, borderRadius: 16 }} />
         </div>
       </div>
 
-      {/* Leaderboard and Multiplayer */}
+      {/* Leaderboard dan Multiplayer */}
       <div
         style={{
           position: 'absolute',
@@ -248,7 +278,7 @@ const Play = () => {
         <div
           style={{ cursor: 'pointer', userSelect: 'none' }}
           onClick={() => setShowLeaderboard(true)}
-          title="Show Leaderboard"
+          title="Tampilkan Leaderboard"
         >
           <img src={Learderboard} alt="Leaderboard" style={{ width: 120, borderRadius: 16 }} />
         </div>
@@ -256,9 +286,9 @@ const Play = () => {
         <div
           style={{ cursor: 'pointer' }}
           onClick={() => navigate('/multiplayer', { state: { username: userProfile.username } })}
-          title="Go to Multiplayer"
+          title="Pergi ke Multiplayer"
         >
-          <img src={MULTIPLAYER} alt="Multiplayer Mode" style={{ width: 120, borderRadius: 16 }} />
+          <img src={MULTIPLAYER} alt="Mode Multiplayer" style={{ width: 120, borderRadius: 16 }} />
         </div>
       </div>
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 
-const turnOrderInitial = [0, 3, 1, 2]; 
+const turnOrderInitial = [0, 3, 1, 2];
 
 function Game1v3() {
   const location = useLocation();
@@ -11,7 +11,7 @@ function Game1v3() {
   const [deck, setDeck] = useState([]);
   const [discardPile, setDiscardPile] = useState([]);
   const [playerHand, setPlayerHand] = useState([]);
-  const [botHands, setBotHands] = useState([[], [], []]); 
+  const [botHands, setBotHands] = useState([[], [], []]);
   const [turnIndex, setTurnIndex] = useState(0);
   const [turnOrder, setTurnOrder] = useState([...turnOrderInitial]);
   const [winner, setWinner] = useState(null);
@@ -55,17 +55,17 @@ function Game1v3() {
   function startGame() {
     const newDeck = generateShuffledDeck();
     const initialPlayerHand = [];
-    const initialBot1Hand = [];
-    const initialBot2Hand = [];
-    const initialBot3Hand = [];
+    const initialplayer1Hand = [];
+    const initialplayer2Hand = [];
+    const initialplayer3Hand = [];
     const cardsToDeal = [];
 
     // Extract initial cards for dealing animation (7 cards each)
     for (let i = 0; i < 7; i++) {
       initialPlayerHand.push(newDeck.pop());
-      initialBot1Hand.push(newDeck.pop());
-      initialBot2Hand.push(newDeck.pop());
-      initialBot3Hand.push(newDeck.pop());
+      initialplayer1Hand.push(newDeck.pop());
+      initialplayer2Hand.push(newDeck.pop());
+      initialplayer3Hand.push(newDeck.pop());
     }
     const initialTopCard = newDeck.pop();
 
@@ -81,13 +81,13 @@ function Game1v3() {
     setSkipNext(false);
     setScores(null);
 
-    // Prepare cards for animation, alternating between players (Player, Bot 3, Bot 1, Bot 2)
+    // Prepare cards for animation, alternating between players (Player, Player 3, Player 1, Player 2)
     const dealingSequence = [];
     for (let i = 0; i < 7; i++) {
       dealingSequence.push({ card: initialPlayerHand[i], target: 'player' });
-      dealingSequence.push({ card: initialBot3Hand[i], target: 'bot3' });
-      dealingSequence.push({ card: initialBot1Hand[i], target: 'bot1' });
-      dealingSequence.push({ card: initialBot2Hand[i], target: 'bot2' });
+      dealingSequence.push({ card: initialplayer3Hand[i], target: 'player3' });
+      dealingSequence.push({ card: initialplayer1Hand[i], target: 'player1' });
+      dealingSequence.push({ card: initialplayer2Hand[i], target: 'player2' });
     }
     dealingSequence.push({ card: initialTopCard, target: 'discard' });
 
@@ -95,9 +95,9 @@ function Game1v3() {
 
     // Start sequential dealing animation
     let playerTempHand = [];
-    let bot1TempHand = [];
-    let bot2TempHand = [];
-    let bot3TempHand = [];
+    let player1TempHand = [];
+    let player2TempHand = [];
+    let player3TempHand = [];
     let currentDiscardPile = [];
     let delay = 0;
     // Increased delay between each card deal for slow-motion
@@ -109,15 +109,15 @@ function Game1v3() {
         if (item.target === 'player') {
           playerTempHand.push(item.card);
           setPlayerHand([...playerTempHand]);
-        } else if (item.target === 'bot1') {
-          bot1TempHand.push(item.card);
-          setBotHands((prev) => [bot1TempHand, prev[1], prev[2]]);
-        } else if (item.target === 'bot2') {
-          bot2TempHand.push(item.card);
-          setBotHands((prev) => [prev[0], bot2TempHand, prev[2]]);
-        } else if (item.target === 'bot3') {
-          bot3TempHand.push(item.card);
-          setBotHands((prev) => [prev[0], prev[1], bot3TempHand]);
+        } else if (item.target === 'player1') {
+          player1TempHand.push(item.card);
+          setBotHands((prev) => [player1TempHand, prev[1], prev[2]]);
+        } else if (item.target === 'player2') {
+          player2TempHand.push(item.card);
+          setBotHands((prev) => [prev[0], player2TempHand, prev[2]]);
+        } else if (item.target === 'player3') {
+          player3TempHand.push(item.card);
+          setBotHands((prev) => [prev[0], prev[1], player3TempHand]);
         } else if (item.target === 'discard') {
           currentDiscardPile.push(item.card);
           setDiscardPile([...currentDiscardPile]);
@@ -207,15 +207,15 @@ function Game1v3() {
 
     let botIndex;
     let botName;
-    if (botPlayerId === 1) { // Bot 1 (index 0 in botHands array)
+    if (botPlayerId === 1) { // Player 1 (index 0 in botHands array)
       botIndex = 0;
-      botName = "Bot 1";
-    } else if (botPlayerId === 2) { // Bot 2 (index 1 in botHands array)
+      botName = "Player 1";
+    } else if (botPlayerId === 2) { // Player 2 (index 1 in botHands array)
       botIndex = 1;
-      botName = "Bot 2";
-    } else if (botPlayerId === 3) { // Bot 3 (index 2 in botHands array)
+      botName = "Player 2";
+    } else if (botPlayerId === 3) { // Player 3 (index 2 in botHands array)
       botIndex = 2;
-      botName = "Bot 3";
+      botName = "Player 3";
     } else {
       return; // Invalid bot ID
     }
@@ -227,6 +227,7 @@ function Game1v3() {
     if (playableIndex !== -1) {
       const playedCard = botHand.splice(playableIndex, 1)[0];
       if (playedCard.color === 'black') {
+        // Bot chooses a random color
         playedCard.color = ['red', 'blue', 'green', 'yellow'][Math.floor(Math.random() * 4)];
       }
 
@@ -253,6 +254,7 @@ function Game1v3() {
       setDeck([...deck]);
       setTurnIndex((prev) => (prev + 1) % turnOrder.length);
     } else {
+      // If no playable card and deck is empty, just pass the turn
       setTurnIndex((prev) => (prev + 1) % turnOrder.length);
     }
   }
@@ -264,13 +266,13 @@ function Game1v3() {
     if (card.value === '+2') {
       const newCards = [deck.pop(), deck.pop()];
       giveCardsToPlayer(nextPlayer, newCards);
-      return true;
+      return true; // Skip next player
     } else if (card.value === '+4') {
       const newCards = [deck.pop(), deck.pop(), deck.pop(), deck.pop()];
       giveCardsToPlayer(nextPlayer, newCards);
-      return true;
+      return true; // Skip next player
     } else if (card.value === 'skip') {
-      return true;
+      return true; // Skip next player
     }
     // No 'reverse' card handling for 1v3 as it doesn't make sense with a fixed turn order.
     // If you add it, you'd need to adjust turnOrder or turnIndex logic.
@@ -299,53 +301,61 @@ function Game1v3() {
     }
   }
 
-  function calculateScores(winnerName) {
-    let playerFinalScore = 0;
-    let bot1FinalScore = 0;
-    let bot2FinalScore = 0;
-    let bot3FinalScore = 0;
-
-    if (winnerName === username) {
-      playerFinalScore = 10;
-    } else if (winnerName === 'Bot 1') {
-      bot1FinalScore = 10;
-    } else if (winnerName === 'Bot 2') {
-      bot2FinalScore = 10;
-    } else if (winnerName === 'Bot 3') {
-      bot3FinalScore = 10;
-    }
-
-    // Calculate penalty points for players who didn't win
-    if (winnerName !== username) {
-      playerFinalScore = Math.min(5, playerHand.reduce((sum, card) => sum + cardValue(card), 0));
-    }
-    if (winnerName !== 'Bot 1') {
-      bot1FinalScore = Math.min(5, botHands[0].reduce((sum, card) => sum + cardValue(card), 0));
-    }
-    if (winnerName !== 'Bot 2') {
-      bot2FinalScore = Math.min(5, botHands[1].reduce((sum, card) => sum + cardValue(card), 0));
-    }
-    if (winnerName !== 'Bot 3') {
-      bot3FinalScore = Math.min(5, botHands[2].reduce((sum, card) => sum + cardValue(card), 0));
-    }
-
-    setScores({
-      winner: winnerName,
-      player: playerFinalScore,
-      bot1: bot1FinalScore,
-      bot2: bot2FinalScore,
-      bot3: bot3FinalScore,
-    });
-  }
-
   function cardValue(card) {
     if (card.value === 'skip' || card.value === 'reverse') return 20;
     if (card.value === '+2') return 20;
     if (card.value === '+4') return 50;
     if (card.value === 'wild') return 50;
     if (!isNaN(parseInt(card.value))) return parseInt(card.value);
-    return 0;
+    return 0; // Untuk kartu yang tidak dikenal atau error
   }
+
+  // --- LOGIKA PERHITUNGAN SKOR BARU ---
+  function calculateScores(winnerName) {
+    let playerTotalPoints = 0;
+    let player1TotalPoints = 0;
+    let player2TotalPoints = 0;
+    let player3TotalPoints = 0;
+
+    // Hitung poin dari tangan pemain yang kalah
+    if (winnerName !== username) {
+      playerTotalPoints = playerHand.reduce((sum, card) => sum + cardValue(card), 0);
+    }
+    if (winnerName !== 'Player 1') {
+      player1TotalPoints = botHands[0].reduce((sum, card) => sum + cardValue(card), 0);
+    }
+    if (winnerName !== 'Player 2') {
+      player2TotalPoints = botHands[1].reduce((sum, card) => sum + cardValue(card), 0);
+    }
+    if (winnerName !== 'Player 3') {
+      player3TotalPoints = botHands[2].reduce((sum, card) => sum + cardValue(card), 0);
+    }
+
+    // Tetapkan skor berdasarkan siapa pemenangnya
+    let finalPlayerScore = 0;
+    let finalplayer1Score = 0;
+    let finalplayer2Score = 0;
+    let finalplayer3Score = 0;
+
+    if (winnerName === username) {
+      finalPlayerScore = player1TotalPoints + player2TotalPoints + player3TotalPoints;
+    } else if (winnerName === 'Player 1') {
+      finalplayer1Score = playerTotalPoints + player2TotalPoints + player3TotalPoints;
+    } else if (winnerName === 'Player 2') {
+      finalplayer2Score = playerTotalPoints + player1TotalPoints + player3TotalPoints;
+    } else if (winnerName === 'Player 3') {
+      finalplayer3Score = playerTotalPoints + player1TotalPoints + player2TotalPoints;
+    }
+
+    setScores({
+      winner: winnerName,
+      player: finalPlayerScore,
+      player1: finalplayer1Score,
+      player2: finalplayer2Score,
+      player3: finalplayer3Score,
+    });
+  }
+  // --- AKHIR LOGIKA PERHITUNGAN SKOR BARU ---
 
   return (
     <div style={styles.container}>
@@ -358,15 +368,18 @@ function Game1v3() {
 
       {winner && (
         <div style={styles.winnerBanner}>
-          🎉 {winner} wins! <button onClick={startGame}>Restart</button>
+          🎉 {winner} menang!
+          <button onClick={startGame} style={{ marginLeft: 15, padding: '8px 15px', borderRadius: 5, border: 'none', backgroundColor: '#4CAF50', color: 'white', cursor: 'pointer' }}>
+            Main Lagi
+          </button>
           {scores && (
             <div style={{ marginTop: 10, fontSize: 16, textAlign: 'left' }}>
-              <p>Skor akhir:</p>
+              <p>Skor akhir ronde:</p>
               <ul>
                 <li>{username}: {scores.player}</li>
-                <li>Bot 1: {scores.bot1}</li>
-                <li>Bot 2: {scores.bot2}</li>
-                <li>Bot 3: {scores.bot3}</li>
+                <li>Player 1: {scores.player1}</li>
+                <li>Player 2: {scores.player2}</li>
+                <li>Player 3: {scores.player3}</li>
               </ul>
             </div>
           )}
@@ -375,7 +388,7 @@ function Game1v3() {
 
       {showColorPicker && (
         <div style={styles.colorPicker}>
-          <p>Choose a color:</p>
+          <p>Pilih warna:</p>
           {['red', 'blue', 'green', 'yellow'].map((color) => (
             <button
               key={color}
@@ -390,7 +403,7 @@ function Game1v3() {
       <div style={{ ...styles.botHandContainer, top: 20, left: '50%', transform: 'translateX(-50%)', position: 'absolute' }}>
         <div style={styles.cardRow}>
           {botHands[0].map((_, i) => (
-            <div key={`bot1-${i}`} style={{ ...styles.playerCard, backgroundColor: 'gray' }}></div>
+            <div key={`player1-${i}`} style={{ ...styles.playerCard, backgroundColor: 'gray' }}></div>
           ))}
         </div>
       </div>
@@ -399,7 +412,7 @@ function Game1v3() {
       <div style={{ ...styles.botHandContainer, right: 20, top: '50%', transform: 'translateY(-50%)', position: 'absolute' }}>
         <div style={styles.cardRowVertical}>
           {botHands[1].map((_, i) => (
-            <div key={`bot2-${i}`} style={{ ...styles.playerCard, backgroundColor: 'gray', ...styles.rotatedCardRight }}></div>
+            <div key={`player2-${i}`} style={{ ...styles.playerCard, backgroundColor: 'gray', ...styles.rotatedCardRight }}></div>
           ))}
         </div>
       </div>
@@ -408,7 +421,7 @@ function Game1v3() {
       <div style={{ ...styles.botHandContainer, left: 20, top: '50%', transform: 'translateY(-50%)', position: 'absolute' }}>
         <div style={styles.cardRowVertical}>
           {botHands[2].map((_, i) => (
-            <div key={`bot3-${i}`} style={{ ...styles.playerCard, backgroundColor: 'gray', ...styles.rotatedCardLeft }}></div>
+            <div key={`player3-${i}`} style={{ ...styles.playerCard, backgroundColor: 'gray', ...styles.rotatedCardLeft }}></div>
           ))}
         </div>
       </div>
@@ -429,15 +442,15 @@ function Game1v3() {
               animate={{
                 // Target position based on who receives the card
                 x: item.target === 'player' ? 0 :
-                   item.target === 'bot1' ? 0 : // Bot 1 (top) will move vertically
-                   item.target === 'bot2' ? 180 : // Bot 2 (right) will move horizontally to the right
-                   item.target === 'bot3' ? -180 : // Bot 3 (left) will move horizontally to the left
-                   0, // For discard pile
+                  item.target === 'player1' ? 0 : // Player 1 (top) will move vertically
+                  item.target === 'player2' ? 180 : // Player 2 (right) will move horizontally to the right
+                  item.target === 'player3' ? -180 : // Player 3 (left) will move horizontally to the left
+                  0, // For discard pile
                 y: item.target === 'player' ? 200 :
-                   item.target === 'bot1' ? -200 : // Bot 1 (top) will move vertically upwards
-                   item.target === 'bot2' ? 0 : // Bot 2 (right) stays at similar y-level
-                   item.target === 'bot3' ? 0 : // Bot 3 (left) stays at similar y-level
-                   0, // For discard pile
+                  item.target === 'player1' ? -200 : // Player 1 (top) will move vertically upwards
+                  item.target === 'player2' ? 0 : // Player 2 (right) stays at similar y-level
+                  item.target === 'player3' ? 0 : // Plauer 3 (left) stays at similar y-level
+                  0, // For discard pile
                 opacity: 1,
                 scale: 1,
                 rotate: 0,
@@ -503,7 +516,7 @@ function Game1v3() {
           disabled={turn !== 0 || winner || deck.length === 0 || !gameStarted}
           style={styles.drawButton}
         >
-          Draw Card
+          Ambil Kartu
         </button>
       </div>
 
@@ -659,6 +672,5 @@ const styles = {
     color: 'white',
   },
 };
-
 
 export default Game1v3;

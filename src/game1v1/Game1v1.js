@@ -1,11 +1,41 @@
+// Game1v1.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import kembali from '../assets/kembali.png';
 import { useLocation } from 'react-router-dom';
 
+// Import Firebase Firestore functions
+import { db } from '../firebase';
+import { collection, addDoc, serverTimestamp, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { auth } from '../firebase';
+
+// Import the new WinnerDisplay component
+import WinnerDisplay from './WinnerDisplay';
+
 const turnOrderInitial = [0, 1];
 
-const GAME_TIME_LIMIT = 300; // 5 minutes
+const GAME_TIME_LIMIT = 180; // 3 menit
+
+// --- Styles moved to a separate object ---
+const playerInfoBoxStyles = {
+  position: 'absolute',
+  top: '20px',
+  left: '50%',
+  transform: 'translateX(-50%)',
+  padding: '10px 20px',
+  borderRadius: '10px',
+  zIndex: 20,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: '5px',
+};
+
+const playerInfoTextStyles = {
+  margin: 0,
+  color: 'white',
+  fontSize: '18px',
+};
 
 function Game1v1() {
   const location = useLocation();
@@ -29,22 +59,44 @@ function Game1v1() {
   const [gameStarted, setGameStarted] = useState(false);
   const [dealtCards, setDealtCards] = useState([]);
 
-  // State for player's total game time (countdown)
   const [playerGameTime, setPlayerGameTime] = useState(GAME_TIME_LIMIT);
 
   const turn = turnOrder[turnIndex];
   const topCard = discardPile[discardPile.length - 1];
 
+  const saveGameResult = async (result) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        console.warn('Tidak ada pengguna yang login. Hasil game tidak dapat disimpan ke Firestore.');
+        return;
+      }
+
+      await addDoc(collection(db, "gameResults"), {
+        playerUsername: result.username,
+        playerUid: user.uid,
+        botScore: result.botScore,
+        playerScore: result.playerScore,
+        winner: result.winner,
+        timestamp: serverTimestamp(),
+        gameDurationSeconds: result.gameDurationSeconds
+      });
+      console.log("Hasil game berhasil disimpan!");
+    } catch (error) {
+      console.error("Error saat menyimpan hasil game: ", error);
+    }
+  };
+
   useEffect(() => {
     setGameStarted(false);
-    setPlayerGameTime(GAME_TIME_LIMIT); // Reset player time at component mount/remount
+    setPlayerGameTime(GAME_TIME_LIMIT);
     setCountdown(5);
     const countdownInterval = setInterval(() => {
       setCountdown((prev) => {
         if (prev === 1) {
           clearInterval(countdownInterval);
-          setGameStarted(true); // Mark game as started
-          startGame(); // Initialize game assets
+          setGameStarted(true);
+          startGame();
         }
         return prev - 1;
       });
@@ -52,21 +104,21 @@ function Game1v1() {
     return () => clearInterval(countdownInterval);
   }, []);
 
-  // useEffect for player's total game time countdown
   useEffect(() => {
     let interval = null;
-    if (gameStarted && !winner && playerGameTime > 0) { // Timer runs if game is active, no winner, and time remaining
+    if (gameStarted && !winner && playerGameTime > 0) {
       interval = setInterval(() => {
         setPlayerGameTime(prevTime => prevTime - 1);
       }, 1000);
     } else if (playerGameTime === 0 && gameStarted && !winner) {
-      setWinner('Bot'); // Bot wins if player runs out of time
-      alert('Time\'s up! Bot wins!');
+      setWinner('Bot');
+      alert('Waktu habis! Bot menang!');
+      calculateScores('Bot');
       clearInterval(interval);
-    } else if (winner || !gameStarted) { // Stop timer if game ends or hasn't started
+    } else if (winner || !gameStarted) {
       clearInterval(interval);
     }
-    return () => clearInterval(interval); // Cleanup
+    return () => clearInterval(interval);
   }, [gameStarted, winner, playerGameTime]);
 
 
@@ -86,7 +138,6 @@ function Game1v1() {
     const initialBotHand = [];
     const cardsToDeal = [];
 
-    // Reset player time for a new game
     setPlayerGameTime(GAME_TIME_LIMIT);
 
     for (let i = 0; i < 7; i++) {
@@ -105,6 +156,7 @@ function Game1v1() {
     setShowColorPicker(false);
     setScores(null);
     setPendingDraw({ count: 0, type: null });
+    setUnoCalled(false);
 
     for (let i = 0; i < 7; i++) {
       cardsToDeal.push({ card: initialPlayerHand[i], target: 'player' });
@@ -139,15 +191,17 @@ function Game1v1() {
     const colors = ['red', 'blue', 'green', 'yellow'];
     const values = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'skip', '+2'];
     const deck = [];
+    let idCounter = 0;
+
     for (let color of colors) {
       for (let value of values) {
-        deck.push({ color, value });
-        if (value !== '0') deck.push({ color, value });
+        deck.push({ id: idCounter++, color, value });
+        if (value !== '0') deck.push({ id: idCounter++, color, value });
       }
     }
     for (let i = 0; i < 4; i++) {
-      deck.push({ color: 'black', value: 'wild' });
-      deck.push({ color: 'black', value: '+4' });
+      deck.push({ id: idCounter++, color: 'black', value: 'wild' });
+      deck.push({ id: idCounter++, color: 'black', value: '+4' });
     }
     for (let i = deck.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -159,7 +213,7 @@ function Game1v1() {
   function isPlayable(card, topCard) {
     if (!topCard) return true;
     if (card.value === pendingDraw.type && pendingDraw.count > 0) return true;
-    if (pendingDraw.count > 0 && card.value !== pendingDraw.type && card.color !== 'black') return false; // Added exception for wild cards
+    if (pendingDraw.count > 0 && card.value !== pendingDraw.type && card.color !== 'black') return false;
     return (
       card.color === topCard.color ||
       card.value === topCard.value ||
@@ -167,23 +221,27 @@ function Game1v1() {
     );
   }
 
-  function playCard(card, index) {
+  function playCard(cardToPlay) {
     if (turn !== 0 || winner || !gameStarted) return;
-    if (!isPlayable(card, topCard)) return;
+    if (!isPlayable(cardToPlay, topCard)) return;
+
+    const index = playerHand.findIndex(c => c.id === cardToPlay.id);
+    if (index === -1) return;
+
     if (playerHand.length === 2 && !unoCalled) {
       applyPenalty(username);
     }
-    if (card.color === 'black') {
-      setPendingCard({ card, index });
+    if (cardToPlay.color === 'black') {
+      setPendingCard({ card: cardToPlay, index });
       setShowColorPicker(true);
       setSelectedColorCallback(() => (color) => {
-        const chosenCard = { ...card, color: color };
+        const chosenCard = { ...cardToPlay, color: color };
         finalizePlayCard(chosenCard, index);
         setShowColorPicker(false);
         setPendingCard(null);
       });
     } else {
-      finalizePlayCard(card, index);
+      finalizePlayCard(cardToPlay, index);
     }
   }
 
@@ -220,24 +278,26 @@ function Game1v1() {
 
   function drawCardPlayer() {
     if (turn !== 0 || winner || !gameStarted) return;
-    if (pendingDraw.count > 0) {
-      const newCards = [];
-      let currentDeck = [...deck];
-      for (let i = 0; i < pendingDraw.count; i++) {
-        if (currentDeck.length > 0) {
-          newCards.push(currentDeck.pop());
-        } else break;
-      }
-      setPlayerHand((prev) => [...prev, ...newCards]);
-      setDeck(currentDeck);
-      setPendingDraw({ count: 0, type: null });
-    } else if (deck.length > 0) {
-      const newCard = deck.pop();
-      setPlayerHand([...playerHand, newCard]);
-      setDeck([...deck]);
-    } else {
-      console.log("Deck is empty, cannot draw.");
+    if (pendingDraw.count > 0 && playerHand.some(card => isPlayable(card, topCard) && (card.value === pendingDraw.type || card.color === 'black'))) {
+      alert(`Anda harus memainkan kartu +${pendingDraw.type} atau kartu Wild.`);
+      return;
     }
+
+    const newCards = [];
+    let currentDeck = [...deck];
+    let cardsToDraw = pendingDraw.count > 0 ? pendingDraw.count : 1;
+
+    for (let i = 0; i < cardsToDraw; i++) {
+      if (currentDeck.length > 0) {
+        newCards.push(currentDeck.pop());
+      } else {
+        console.log("Deck kosong, tidak bisa mengambil kartu lagi.");
+        break;
+      }
+    }
+    setPlayerHand((prev) => [...prev, ...newCards]);
+    setDeck(currentDeck);
+    setPendingDraw({ count: 0, type: null });
     setTurnIndex((prev) => (prev + 1) % turnOrder.length);
   }
 
@@ -249,28 +309,37 @@ function Game1v1() {
       (!pendingDraw.count || card.value === pendingDraw.type || card.color === 'black')
     );
     let playedCard = null;
+
     if (playableCards.length > 0) {
       const stackablePlay = playableCards.find(card => card.value === pendingDraw.type);
       if (stackablePlay) {
         playedCard = stackablePlay;
-      } else if (pendingDraw.count > 0 && playableCards.some(c => c.color === 'black')) {
+      }
+      else if (pendingDraw.count > 0 && playableCards.some(c => c.color === 'black')) {
         playedCard = playableCards.find(c => c.color === 'black');
-      } else {
+      }
+      else {
         playedCard = playableCards.find(c => c.color !== 'black') || playableCards[0];
       }
+
       const playableIndex = hand.findIndex(card => card === playedCard);
       hand.splice(playableIndex, 1);
+
       if (playedCard.color === 'black') {
         playedCard.color = ['red', 'blue', 'green', 'yellow'][Math.floor(Math.random() * 4)];
       }
+
       setUnoCalled(false);
       setBotHand(hand);
       setAnimatingCard(playedCard);
+
       const isStackable = playedCard.value === '+2' || playedCard.value === '+4';
       const stackMatch = pendingDraw.type === playedCard.value;
+
       setTimeout(() => {
         setDiscardPile((prev) => [...prev, playedCard]);
         setAnimatingCard(null);
+
         if (isStackable) {
           if (pendingDraw.count > 0 && stackMatch) {
             setPendingDraw((prev) => ({
@@ -283,30 +352,29 @@ function Game1v1() {
         } else {
           setPendingDraw({ count: 0, type: null });
         }
+
         if (hand.length === 0) {
           checkWinner(hand, `Bot`);
         } else {
           setTurnIndex((prev) => (prev + 1) % turnOrder.length);
         }
       }, 500);
-    } else if (pendingDraw.count > 0) {
+    } else {
       const newCards = [];
       let currentDeck = [...deck];
-      for (let i = 0; i < pendingDraw.count; i++) {
-        if (currentDeck.length > 0) newCards.push(currentDeck.pop());
-        else break;
+      let cardsToDraw = pendingDraw.count > 0 ? pendingDraw.count : 1;
+
+      for (let i = 0; i < cardsToDraw; i++) {
+        if (currentDeck.length > 0) {
+          newCards.push(currentDeck.pop());
+        } else {
+          console.log("Deck kosong untuk bot, tidak bisa mengambil.");
+          break;
+        }
       }
       setBotHand((prev) => [...prev, ...newCards]);
       setDeck(currentDeck);
       setPendingDraw({ count: 0, type: null });
-      setTurnIndex((prev) => (prev + 1) % turnOrder.length);
-    } else if (deck.length > 0) {
-      let currentDeck = [...deck];
-      hand.push(currentDeck.pop());
-      setBotHand(hand);
-      setDeck(currentDeck);
-      setTurnIndex((prev) => (prev + 1) % turnOrder.length);
-    } else {
       setTurnIndex((prev) => (prev + 1) % turnOrder.length);
     }
   }
@@ -323,7 +391,7 @@ function Game1v1() {
       setPlayerHand((prev) => [...prev, ...penaltyCards]);
     } else if (player === 'Bot') {
       setBotHand((prev) => [...prev, ...penaltyCards]);
-      alert('Bot forgot to call UNO! 2 cards added to Bot hand.');
+      alert('Bot lupa memanggil UNO! 2 kartu ditambahkan ke tangan Bot.');
     }
     setDeck(currentDeck);
   }
@@ -344,31 +412,76 @@ function Game1v1() {
     }
   }
 
-  function calculateScores(winnerName) {
+  async function calculateScores(winnerName) {
     let playerFinalScore = 0;
     let botFinalScore = 0;
+    let gameDuration = GAME_TIME_LIMIT - playerGameTime;
+
+    // Fungsi untuk menghitung nilai satu kartu
+    const cardValue = (card) => {
+      if (!card) return 0; // Menangani kasus di mana kartu mungkin tidak terdefinisi
+      if (['+2', 'skip', 'reverse'].includes(card.value)) return 20;
+      if (['+4', 'wild'].includes(card.value)) return 50;
+      if (!isNaN(parseInt(card.value))) return parseInt(card.value);
+      return 0; // Default untuk tipe kartu yang tidak ditangani
+    };
+
     if (winnerName === username) {
-      playerFinalScore = 10;
-      botFinalScore = Math.min(5, botHand.reduce((sum, card) => sum + cardValue(card), 0));
+      // Pemain menang: Pemain mendapatkan poin dari kartu di tangan bot
+      botHand.forEach(card => {
+        playerFinalScore += cardValue(card);
+      });
     } else if (winnerName === 'Bot') {
-      botFinalScore = 10;
-      playerFinalScore = Math.min(5, playerHand.reduce((sum, card) => sum + cardValue(card), 0));
+      // Bot menang: Bot mendapatkan poin dari kartu di tangan pemain
+      playerHand.forEach(card => {
+        botFinalScore += cardValue(card);
+      });
     }
+
     const finalScores = { winner: winnerName, player: playerFinalScore, bot: botFinalScore };
     setScores(finalScores);
     localStorage.setItem('lastGameScore', JSON.stringify(finalScores));
+
+    saveGameResult({
+      username: username,
+      botScore: botFinalScore,
+      playerScore: playerFinalScore,
+      winner: winnerName,
+      gameDurationSeconds: gameDuration
+    });
+
+    const user = auth.currentUser;
+    if (user) {
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        if (userDoc.exists()) {
+          const currentTotalScore = userDoc.data().totalScore || 0;
+          // Hanya tambahkan skor pemain ke totalScore mereka
+          const newTotalScore = currentTotalScore + playerFinalScore;
+
+          await updateDoc(userDocRef, {
+            totalScore: newTotalScore,
+          });
+          console.log('totalScore berhasil diperbarui di Firestore!');
+
+          const userProfile = JSON.parse(localStorage.getItem('userProfile')) || {};
+          userProfile.totalScore = newTotalScore;
+          localStorage.setItem('userProfile', JSON.stringify(userProfile));
+
+        } else {
+          console.log('Dokumen pengguna tidak ditemukan.');
+        }
+
+      } catch (error) {
+        console.error('Gagal memperbarui totalScore:', error);
+      }
+    } else {
+      console.warn('Tidak ada pengguna yang login. totalScore tidak dapat diperbarui.');
+    }
   }
 
-  function cardValue(card) {
-    if (card.value === 'skip' || card.value === 'reverse') return 20;
-    if (card.value === '+2') return 20;
-    if (card.value === '+4') return 50;
-    if (card.value === 'wild') return 50;
-    if (!isNaN(parseInt(card.value))) return parseInt(card.value);
-    return 0;
-  }
-
-  // Function to format time MM:SS
   function formatTime(totalSeconds) {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -381,7 +494,6 @@ function Game1v1() {
         <img src={kembali} alt="Kembali" style={styles.backIcon} />
       </button>
 
-      {/* Display Total Player Game Time (Countdown) */}
       {gameStarted && (
         <div style={styles.playerGameTimeDisplay}>
           Waktu Tersisa: {formatTime(playerGameTime)}
@@ -394,24 +506,17 @@ function Game1v1() {
         </div>
       )}
 
-      {winner && (
-        <div style={styles.winnerBanner}>
-          🎉 {winner} wins! <button onClick={startGame}>Restart</button>
-          {scores && (
-            <div style={{ marginTop: 10, fontSize: 16, textAlign: 'left' }}>
-              <p>Final Score:</p>
-              <ul>
-                <li>{username}: {scores.player}</li>
-                <li>Bot: {scores.bot}</li>
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Use the WinnerDisplay component here */}
+      <WinnerDisplay
+        winner={winner}
+        username={username}
+        scores={scores}
+        onRestartGame={startGame}
+      />
 
       {showColorPicker && (
         <div style={styles.colorPicker}>
-          <p>Choose a color:</p>
+          <p>Pilih warna:</p>
           {['red', 'blue', 'green', 'yellow'].map((color) => (
             <button
               key={color}
@@ -422,10 +527,11 @@ function Game1v1() {
         </div>
       )}
 
+      {/* Bot Hand (existing) */}
       <div style={{ ...styles.botHandContainer, top: 20, left: '50%', transform: 'translateX(-50%)', position: 'absolute' }}>
         <div style={styles.cardRow}>
-          {botHand.map((_, i) => (
-            <div key={i} style={{ ...styles.playerCard, backgroundColor: 'gray' }}></div>
+          {botHand.map((card) => (
+            <div key={card.id} style={{ ...styles.playerCard, backgroundColor: 'gray' }}></div>
           ))}
         </div>
       </div>
@@ -434,7 +540,7 @@ function Game1v1() {
         <AnimatePresence>
           {dealtCards.map((item, index) => (
             <motion.div
-              key={`dealt-${index}`}
+              key={`${item.card.id}-${item.target}-${index}`}
               initial={{ x: 0, y: 0, opacity: 1, scale: 0.8, rotate: Math.random() * 20 - 10 }}
               animate={{
                 x: item.target === 'player' ? -150 + index * 20 : (item.target === 'bot' ? 150 - index * 20 : 0),
@@ -456,7 +562,7 @@ function Game1v1() {
         <AnimatePresence>
           {animatingCard && (
             <motion.div
-              key="animating"
+              key="animating-card"
               initial={{ scale: 0, rotate: -90, opacity: 0 }}
               animate={{ scale: 1, rotate: 0, opacity: 1 }}
               exit={{ scale: 0.5, opacity: 0 }}
@@ -476,18 +582,23 @@ function Game1v1() {
         </div>
         <button
           onClick={drawCardPlayer}
-          disabled={turn !== 0 || winner || !gameStarted || (pendingDraw.count > 0 && pendingDraw.type && playerHand.some(card => card.value === pendingDraw.type && card.color !== 'black'))}
+          disabled={turn !== 0 || winner || !gameStarted || (pendingDraw.count > 0 && playerHand.some(card => isPlayable(card, topCard) && (card.value === pendingDraw.type || card.color === 'black')))}
           style={styles.drawButton}
         >
-          {pendingDraw.count ? `Draw ${pendingDraw.count}` : 'Draw Card'}
+          {pendingDraw.count ? `Ambil ${pendingDraw.count} Kartu` : 'Ambil Kartu'}
         </button>
       </div>
 
+      {/* Player Username Display */}
+      <div style={styles.playerUsernameDisplay}>
+        {username}
+      </div>
+
       <div style={styles.playerHand}>
-        {playerHand.map((card, i) => (
+        {playerHand.map((card) => (
           <div
-            key={i}
-            onClick={() => playCard(card, i)}
+            key={card.id}
+            onClick={() => playCard(card)}
             style={{
               ...styles.playerCard,
               backgroundColor: card.color,
@@ -510,37 +621,6 @@ function Game1v1() {
 }
 
 const styles = {
-  container: { /* ... */ },
-  backButton: { /* ... */ },
-  backIcon: { /* ... */ },
-  playerHand: { /* ... */ },
-  playerCard: { /* ... */ },
-  botHandContainer: { /* ... */ },
-  cardRow: { /* ... */ },
-  centerArea: { /* ... */ },
-  discardPile: { /* ... */ },
-  drawButton: { /* ... */ },
-  winnerBanner: { /* ... */ },
-  colorPicker: { /* ... */ },
-  colorButton: { /* ... */ },
-  unoButton: { /* ... */ },
-  countdownOverlay: { /* ... */ },
-  countdownText: { /* ... */ },
-  playerGameTimeDisplay: {
-    position: 'absolute',
-    top: '20px',
-    right: '20px',
-    padding: '8px 12px',
-    background: 'rgba(0,0,0,0.6)',
-    color: 'white',
-    borderRadius: '6px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    zIndex: 25,
-  },
-};
-
-Object.assign(styles, {
   container: {
     position: 'relative',
     height: '100vh',
@@ -620,36 +700,26 @@ Object.assign(styles, {
     color: 'white',
     cursor: 'pointer',
   },
-  winnerBanner: {
-    position: 'absolute',
-    top: 40,
-    left: '50%',
-    transform: 'translateX(-50%)',
-    background: 'rgba(0,0,0,0.8)',
-    padding: '16px 24px',
-    borderRadius: 12,
-    fontSize: 24,
-    textAlign: 'center',
-    zIndex: 20,
-  },
   colorPicker: {
     position: 'absolute',
     top: '40%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
-    background: '#222',
+    background: 'transparent',
     padding: 20,
     borderRadius: 10,
     zIndex: 30,
     textAlign: 'center',
+    color: 'white',
   },
   colorButton: {
     width: 40,
     height: 40,
     margin: 5,
     borderRadius: '50%',
-    border: 'none',
+    border: '2px solid white',
     cursor: 'pointer',
+    boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
   },
   unoButton: {
     position: 'absolute',
@@ -673,7 +743,7 @@ Object.assign(styles, {
     left: 0,
     width: '100%',
     height: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -683,7 +753,30 @@ Object.assign(styles, {
     fontSize: 72,
     fontWeight: 'bold',
     color: 'white',
-  }
-});
+    textShadow: '2px 2px 4px rgba(0,0,0,0.6)',
+  },
+  playerGameTimeDisplay: {
+    position: 'absolute',
+    top: '20px',
+    right: '20px',
+    padding: '8px 12px',
+    background: 'rgba(0,0,0,0.6)',
+    color: 'white',
+    borderRadius: '6px',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    zIndex: 25,
+  },
+  playerUsernameDisplay: {
+    position: 'absolute',
+    bottom: 120, // Positioned above the player's hand
+    left: '50%',
+    transform: 'translateX(-50%)',
+    color: 'white',
+    fontSize: '20px',
+    fontWeight: 'bold',
+    zIndex: 15,
+  },
+};
 
 export default Game1v1;

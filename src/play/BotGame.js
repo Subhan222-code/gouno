@@ -57,7 +57,7 @@ const styles = {
     padding: '1rem 2rem',
     fontSize: '1.25rem',
     fontWeight: 'bold',
-    backgroundColor: '#00b894',
+    backgroundColor: ' #00b894',
     border: 'none',
     borderRadius: '8px',
     color: 'white',

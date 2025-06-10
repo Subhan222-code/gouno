@@ -10,7 +10,7 @@ import {
   setDoc,
   doc,
 } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth'; // Import sendEmailVerification
 
 const Register = () => {
   const navigate = useNavigate();
@@ -19,6 +19,7 @@ const Register = () => {
     email: '',
     password: '',
   });
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -26,8 +27,10 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+
     try {
-      // Cek username di Firestore
+      // 1. Cek apakah username sudah digunakan di Firestore
       const usernameQuery = query(
         collection(db, 'users'),
         where('username', '==', form.username)
@@ -35,10 +38,11 @@ const Register = () => {
       const usernameSnapshot = await getDocs(usernameQuery);
       if (!usernameSnapshot.empty) {
         alert('Username sudah digunakan. Silakan pilih username lain.');
+        setLoading(false);
         return;
       }
 
-      // Buat user di Firebase Auth
+      // 2. Buat user di Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         form.email,
@@ -46,32 +50,47 @@ const Register = () => {
       );
       const user = userCredential.user;
 
-      // Simpan data user ke Firestore
-      await setDoc(doc(db, 'users', user.uid), {
-        username: form.username,
-        email: form.email,
-      });
+      // 3. Kirim email verifikasi
+      await sendEmailVerification(user); // Send verification email
 
-      // Simpan ke localStorage
-      localStorage.setItem(
-        'userProfile',
-        JSON.stringify({ username: form.username, email: form.email })
-      );
+      // 4. Simpan data user ke Firestore
+      try {
+        await setDoc(doc(db, 'users', user.uid), {
+          username: form.username,
+          email: form.email,
+          totalScore: 0,
+          emailVerified: false, // Tambahkan status verifikasi email
+        });
 
-      alert('Registrasi berhasil!');
-      setForm({ username: '', email: '', password: '' });
-      navigate('/login');
-    } catch (error) {
-      console.error('Error saat registrasi:', error);
-      if (error.code === 'auth/email-already-in-use') {
+        // Simpan data user ke localStorage (pertimbangkan untuk tidak menyimpan emailVerified di localStorage
+        // jika Anda akan selalu mengambilnya dari Firestore atau Firebase Auth saat login)
+        localStorage.setItem(
+          'userProfile',
+          JSON.stringify({ username: form.username, email: form.email, totalScore: 0, emailVerified: false })
+        );
+
+        alert('Registrasi berhasil! Silakan cek email Anda untuk verifikasi dan kemudian login.');
+        setForm({ username: '', email: '', password: '' });
+        navigate('/login');
+      } catch (firestoreError) {
+        console.error('Error saat menyimpan data profil user ke Firestore:', firestoreError);
+        // Jika penyimpanan ke Firestore gagal, hapus user yang baru dibuat di Firebase Auth
+        await user.delete();
+        alert('Registrasi gagal. Terjadi masalah saat menyimpan data profil.');
+      }
+    } catch (authError) {
+      console.error('Error saat registrasi Firebase Auth:', authError);
+      if (authError.code === 'auth/email-already-in-use') {
         alert('Email sudah terdaftar. Silakan gunakan email lain atau login.');
-      } else if (error.code === 'auth/invalid-email') {
+      } else if (authError.code === 'auth/invalid-email') {
         alert('Format email tidak valid.');
-      } else if (error.code === 'auth/weak-password') {
+      } else if (authError.code === 'auth/weak-password') {
         alert('Password terlalu lemah. Gunakan minimal 6 karakter.');
       } else {
         alert('Terjadi kesalahan saat registrasi. Silakan coba lagi.');
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -149,21 +168,22 @@ const Register = () => {
 
         <button
           type="submit"
+          disabled={loading}
           style={{
-            backgroundColor: '#2978f0',
+            backgroundColor: loading ? '#6c757d' : '#2978f0',
             padding: '14px 0',
             borderRadius: '10px',
             border: 'none',
             fontWeight: '700',
             fontSize: '16px',
-            cursor: 'pointer',
+            cursor: loading ? 'not-allowed' : 'pointer',
             color: '#fff',
             transition: 'background-color 0.3s ease',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1a5edb')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2978f0')}
+          onMouseEnter={(e) => (loading ? null : (e.currentTarget.style.backgroundColor = '#1a5edb'))}
+          onMouseLeave={(e) => (loading ? null : (e.currentTarget.style.backgroundColor = '#2978f0'))}
         >
-          Register
+          {loading ? 'Mendaftar...' : 'Register'}
         </button>
 
         <p style={{ marginTop: '20px', textAlign: 'center' }}>
