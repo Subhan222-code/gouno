@@ -1,5 +1,5 @@
 // Game1v1.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import kembali from '../assets/kembali.png';
 import { useLocation } from 'react-router-dom';
@@ -11,7 +11,8 @@ import { auth } from '../firebase';
 
 // Import the new WinnerDisplay component
 import WinnerDisplay from './WinnerDisplay';
-
+import bgMusic from '../sound/Lets_Play.mp3';
+import countdownSound from '../sound/5_second.mp3'; 
 const turnOrderInitial = [0, 1];
 
 const GAME_TIME_LIMIT = 180; // 3 menit
@@ -63,6 +64,44 @@ function Game1v1() {
 
   const turn = turnOrder[turnIndex];
   const topCard = discardPile[discardPile.length - 1];
+
+  const bgAudioRef = useRef(new Audio(bgMusic)); // Ref for background music
+  const countdownAudioRef = useRef(new Audio(countdownSound)); // Ref for countdown sound
+
+  // Effect for playing and pausing background music
+  useEffect(() => {
+    const bgAudio = bgAudioRef.current;
+    bgAudio.loop = true; // Loop the music
+
+    if (gameStarted && !winner) {
+      bgAudio.play().catch(e => console.error("Error playing background audio:", e));
+    } else {
+      bgAudio.pause();
+      bgAudio.currentTime = 0; // Reset music when game ends or is not started
+    }
+
+    // Cleanup function to pause and reset music when component unmounts
+    return () => {
+      bgAudio.pause();
+      bgAudio.currentTime = 0;
+    };
+  }, [gameStarted, winner]); // Depend on gameStarted and winner state
+
+  // Effect for playing countdown sound
+  useEffect(() => {
+    const countdownAudio = countdownAudioRef.current;
+
+    if (!gameStarted && countdown > 0) {
+      // Play the countdown sound when the countdown starts and is active
+      countdownAudio.play().catch(e => console.error("Error playing countdown audio:", e));
+    } else if (gameStarted || countdown === 0) {
+      // Stop and reset the countdown sound once the game starts or countdown finishes
+      countdownAudio.pause();
+      countdownAudio.currentTime = 0;
+    }
+    // No cleanup needed here as we want it to finish playing even if component unmounts immediately
+    // after countdown finishes. The main bg audio cleanup will handle overall audio.
+  }, [gameStarted, countdown]); // Depend on gameStarted and countdown state
 
   const saveGameResult = async (result) => {
     try {

@@ -1,4 +1,3 @@
-// src/components/StartGameButton.js
 import React from 'react';
 
 const StartGameButton = ({ isHost, playersCount, onStartGame }) => {

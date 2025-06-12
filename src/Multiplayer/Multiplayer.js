@@ -13,7 +13,7 @@ import {
 import CreateRoom from './CreateRoom';
 import JoinRoom from './JoinRoom';
 import Lobby from './Lobby';
-import Game1v1, { generateDeck } from './Game1vs1';
+import Game1v1, { generateDeck } from '../gamemultiplayer/Game1vs1';
 import MULTIPLAYER_UNO from '../assets/MULTIPLAYER_UNO.png';
 
 function Multiplayer() {

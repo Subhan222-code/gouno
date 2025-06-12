@@ -110,21 +110,20 @@ const styles = {
     border: 'none',
     cursor: 'pointer',
   },
-  // --- New styles for Countdown ---
   countdownOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     width: '100%',
     height: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)', // Dark semi-transparent overlay
+    backgroundColor: 'rgba(0, 0, 0, 0.7)', 
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 100, // Make sure it's on top of everything else
+    zIndex: 100, 
   },
   countdownText: {
-    fontSize: 72, // Large font size for visibility
+    fontSize: 72, 
     fontWeight: 'bold',
     color: 'white',
   },

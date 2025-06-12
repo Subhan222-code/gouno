@@ -25,7 +25,6 @@ const Lobby = ({
       <h2>Room: {currentRoomData.roomName}</h2>
       <h2>ID: {currentRoomId}</h2>
 
-      {/* Players list fixed top right */}
       <div
         style={{
           position: 'fixed',
@@ -64,19 +63,16 @@ const Lobby = ({
         </ul>
       </div>
 
-      {/* Start Game Button */}
       <StartGameButton
         isHost={isHost}
         playersCount={currentRoomData.players.length}
         onStartGame={onStartGame}
       />
 
-      {/* Keluar Lobby Button di bawah Start Game */}
       <button onClick={onLeaveLobby} style={{ marginTop: 10 }}>
         Keluar Lobby
       </button>
 
-      {/* Chat Section (formerly Chat component) */}
       <div
         style={{
           position: 'fixed',
@@ -92,7 +88,6 @@ const Lobby = ({
       >
         <h3>Chat Room</h3>
 
-        {/* Daftar pesan */}
         <div
           style={{
             maxHeight: 200,
@@ -128,7 +123,6 @@ const Lobby = ({
           )}
         </div>
 
-        {/* Input & tombol kirim */}
         <div style={{ display: 'flex', gap: 8 }}>
           <input
             type="text"

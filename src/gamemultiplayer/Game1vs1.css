@@ -1,0 +1,359 @@
+.game-container {
+  position: relative; /* Penting: Jadikan kontainer ini sebagai referensi posisi absolut */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 80vh;
+  text-align: center;
+  padding: 20px 20px 40px 20px;
+  color: white;
+  background-color: #000000;
+  font-family: 'Arial', sans-serif;
+}
+
+.turn-indicator {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: #333;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-weight: bold;
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.timer {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #333;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-weight: bold;
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.player-title {
+  font-size: 24px;
+  margin-bottom: 10px;
+  color: #f0f0f0;
+  text-align: center;
+}
+
+.opponent-hand-container,
+.player-hand-container {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  max-width: 600px;
+  gap: 5px;
+  margin-bottom: 20px;
+}
+
+.pile-section {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.pile-top-card-container {
+  display: flex;
+  justify-content: center;
+}
+
+/* Card Styles */
+.card {
+  width: 60px;
+  height: 90px;
+  border-radius: 8px;
+  margin: 0 2px;
+  border: 2px solid #333;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  user-select: none;
+  font-size: 14px;
+  transition: transform 0.1s ease-in-out, box-shadow 0.2s ease-in-out;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  flex-shrink: 0;
+}
+
+.card.clickable {
+  cursor: pointer;
+}
+
+.card.clickable:hover {
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 8px 16px rgba(255,255,255,0.4);
+}
+
+.card.not-clickable {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.card-back {
+  background-color: gray;
+  font-size: 18px;
+}
+
+.wild-card {
+  background-color: #333;
+}
+
+.red-card { background-color: #dc3545; }
+.green-card { background-color: #28a745; }
+.blue-card { background-color: #007bff; }
+.yellow-card { background-color: #ffc107; color: #333; }
+
+.card-icon {
+  font-size: 16px;
+}
+
+.card-color-text {
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+.wild-color-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 5px;
+  border: 1px solid white;
+}
+
+/* Button Styles */
+.draw-button,
+.uno-button {
+  padding: 12px 25px;
+  font-size: 20px;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  transition: background-color 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  font-weight: bold;
+  color: white;
+  cursor: pointer;
+  z-index: 5; /* Pastikan tombol berada di atas elemen lain jika tumpang tindih */
+}
+
+.draw-button {
+  background-color: #007bff;
+  position: absolute; /* Posisi absolut */
+  right: 20px; /* Jarak dari kanan */
+  top: 50%; /* Posisikan di tengah vertikal */
+  transform: translateY(-50%); /* Sesuaikan untuk penempatan tengah yang sempurna */
+}
+
+.uno-button {
+  background-color: #dc3545;
+  position: absolute; /* Posisi absolut */
+  left: 20px; /* Jarak dari kiri */
+  top: 50%; /* Posisikan di tengah vertikal */
+  transform: translateY(-50%); /* Sesuaikan untuk penempatan tengah yang sempurna */
+}
+
+.draw-button:disabled,
+.uno-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Container game-actions dihapus karena tombol sudah diposisikan secara absolut */
+/* Jika Anda memiliki tombol lain di masa mendatang, Anda bisa membuat container baru untuk mereka */
+.game-actions {
+  display: none; /* Sembunyikan atau hapus ini jika tombol diposisikan secara absolut */
+}
+
+/* Color Picker Styles */
+.color-picker-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.9);
+  padding: 30px;
+  border-radius: 15px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+  max-width: 90%;
+  box-sizing: border-box;
+}
+
+.color-picker-title {
+  font-size: 26px;
+  color: white;
+  margin: 0;
+}
+
+.color-choices {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.color-circle {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 3px solid white;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  flex-shrink: 0;
+}
+
+.color-circle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(255,255,255,0.7);
+}
+
+/* Background colors for color circles */
+.red-bg { background-color: red; }
+.green-bg { background-color: green; }
+.blue-bg { background-color: blue; }
+.yellow-bg { background-color: yellow; }
+
+/*
+---
+Responsive Adjustments
+---
+*/
+
+/* For screens smaller than 768px (e.g., tablets and large phones) */
+@media (max-width: 768px) {
+  .turn-indicator,
+  .timer {
+    font-size: 16px;
+    padding: 4px 8px;
+  }
+
+  .player-title {
+    font-size: 20px;
+  }
+
+  .opponent-hand-container,
+  .player-hand-container {
+    max-width: 95%;
+    gap: 3px;
+  }
+
+  .card {
+    width: 50px;
+    height: 75px;
+    font-size: 12px;
+  }
+
+  .card-icon {
+    font-size: 14px;
+  }
+
+  .card-color-text {
+    font-size: 9px;
+  }
+
+  .draw-button,
+  .uno-button {
+    padding: 10px 20px;
+    font-size: 18px;
+    top: auto; /* Reset top for mobile */
+    transform: none; /* Reset transform for mobile */
+    position: static; /* Jadikan statis pada layar kecil agar mengalir secara normal */
+    width: 100%; /* Lebar penuh */
+    margin-top: 10px; /* Tambahkan margin untuk penumpukan */
+    left: auto; /* Reset left */
+    right: auto; /* Reset right */
+  }
+
+  .color-picker-container {
+    padding: 20px;
+  }
+
+  .color-picker-title {
+    font-size: 22px;
+  }
+
+  .color-circle {
+    width: 50px;
+    height: 50px;
+  }
+}
+
+/* For screens smaller than 480px (e.g., most mobile phones) */
+@media (max-width: 480px) {
+  .game-container {
+    padding: 15px;
+  }
+
+  .turn-indicator,
+  .timer {
+    position: static;
+    margin: 5px auto;
+    width: fit-content;
+  }
+
+  .player-title {
+    font-size: 18px;
+    margin-top: 15px;
+  }
+
+  .opponent-hand-container,
+  .player-hand-container {
+    max-width: 100%;
+    gap: 2px;
+    margin-bottom: 15px;
+  }
+
+  .card {
+    width: 45px;
+    height: 68px;
+    font-size: 11px;
+  }
+
+  .card-icon {
+    font-size: 13px;
+  }
+
+  .card-color-text {
+    font-size: 8px;
+  }
+
+  .draw-button,
+  .uno-button {
+    font-size: 16px;
+    padding: 10px;
+  }
+
+  /* .game-actions tidak lagi digunakan, jadi tidak perlu disesuaikan di sini */
+
+  .color-picker-container {
+    width: 95%;
+    padding: 15px;
+  }
+
+  .color-picker-title {
+    font-size: 20px;
+  }
+
+  .color-choices {
+    gap: 10px;
+  }
+
+  .color-circle {
+    width: 45px;
+    height: 45px;
+  }
+}

@@ -1,9 +1,8 @@
-// WinnerDisplay.jsx
 import React from 'react';
 
 const WinnerDisplay = ({ winner, username, scores, onRestartGame }) => {
   if (!winner) {
-    return null; // Don't render anything if there's no winner
+    return null; 
   }
 
   return (
@@ -79,10 +78,9 @@ const styles = {
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 35,
-    // Changed the color of the winner's name text to a deep blue
     color: '#004080',
     letterSpacing: '3px',
-    textShadow: '2px 2px 0 #FFF, 4px 4px 0 #17A2B8', // Adjusted shadow to complement the blue
+    textShadow: '2px 2px 0 #FFF, 4px 4px 0 #17A2B8', 
   },
   scoreDetails: {
     width: '100%',

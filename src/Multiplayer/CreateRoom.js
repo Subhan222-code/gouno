@@ -7,7 +7,7 @@ const CreateRoom = ({ formCreate, setFormCreate, onCreateRoom, onCancel }) => (
       justifyContent: 'center',
       alignItems: 'center',
       minHeight: '100vh',
-      backgroundColor: '#000', // 🔲 background hitam penuh
+      backgroundColor: '#000', 
     }}
   >
     <form
@@ -18,7 +18,7 @@ const CreateRoom = ({ formCreate, setFormCreate, onCreateRoom, onCancel }) => (
         gap: '12px',
         maxWidth: 300,
         width: '100%',
-        background: '#222', // abu tua untuk kontras
+        background: '#222', 
         padding: '24px',
         borderRadius: '12px',
         boxShadow: '0 4px 12px rgba(255,255,255,0.1)',

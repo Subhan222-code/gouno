@@ -17,7 +17,6 @@ const Chat = ({ messages, messageInput, setMessageInput, onSendMessage, playerNa
     >
       <h3>Chat Room</h3>
 
-      {/* Daftar pesan */}
       <div
         style={{
           maxHeight: 200,
@@ -53,7 +52,6 @@ const Chat = ({ messages, messageInput, setMessageInput, onSendMessage, playerNa
         )}
       </div>
 
-      {/* Input & tombol kirim */}
       <div style={{ display: 'flex', gap: 8 }}>
         <input
           type="text"

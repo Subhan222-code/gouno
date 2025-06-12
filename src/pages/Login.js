@@ -2,15 +2,14 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase'; 
+import { auth, db } from '../firebase';
 import croppedImage from '../assets/poster.png';
 
 const Login = () => {
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    email: '',
-    password: '',
-  });
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [errorMsg, setErrorMsg] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setForm({
@@ -26,44 +25,50 @@ const Login = () => {
     const password = form.password;
 
     if (!email || !password) {
-      alert('Email dan password harus diisi');
+      setErrorMsg('Email dan password harus diisi.');
       return;
     }
 
-    console.log('Login attempt:', email, password);
+    console.log('Login attempt:', email); // Hindari log password
 
     try {
+      setLoading(true);
+      setErrorMsg('');
+
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Ambil data user dari Firestore
       const userDocRef = doc(db, 'users', user.uid);
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists()) {
         const { username, email } = userDocSnap.data();
 
-        localStorage.setItem('userProfile', JSON.stringify({ username, email }));
-        alert(`Selamat datang, ${username}!`);
+        localStorage.setItem(
+          'userProfile',
+          JSON.stringify({ username, email, uid: user.uid })
+        );
+
         navigate('/play');
       } else {
-        alert('Data pengguna tidak ditemukan di database.');
+        setErrorMsg('Data pengguna tidak ditemukan di database.');
       }
     } catch (error) {
       console.error('Login error code:', error.code);
-      console.error('Login error message:', error.message);
 
       if (error.code === 'auth/user-not-found') {
-        alert('Akun tidak ditemukan.');
+        setErrorMsg('Akun tidak ditemukan.');
       } else if (error.code === 'auth/wrong-password') {
-        alert('Password salah.');
+        setErrorMsg('Password salah.');
       } else if (error.code === 'auth/invalid-email') {
-        alert('Format email tidak valid.');
+        setErrorMsg('Format email tidak valid.');
       } else if (error.code === 'auth/invalid-credential') {
-        alert('Credential tidak valid. Coba cek kembali email dan password.');
+        setErrorMsg('Credential tidak valid. Cek kembali email dan password.');
       } else {
-        alert('Terjadi kesalahan saat login.');
+        setErrorMsg('Terjadi kesalahan saat login.');
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -131,21 +136,32 @@ const Login = () => {
 
         <button
           type="submit"
+          disabled={loading}
           style={{
-            backgroundColor: '#FFD700',
+            backgroundColor: loading ? '#ccc' : '#FFD700',
             padding: '14px 0',
             borderRadius: '10px',
             border: 'none',
             fontWeight: '700',
             fontSize: '16px',
-            cursor: 'pointer',
+            cursor: loading ? 'not-allowed' : 'pointer',
             transition: 'background-color 0.3s ease',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#1a5edb')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#2978f0')}
+          onMouseEnter={(e) => {
+            if (!loading) e.currentTarget.style.backgroundColor = '#e6c200';
+          }}
+          onMouseLeave={(e) => {
+            if (!loading) e.currentTarget.style.backgroundColor = '#FFD700';
+          }}
         >
-          Login
+          {loading ? 'Memproses...' : 'Login'}
         </button>
+
+        {errorMsg && (
+          <p style={{ marginTop: '12px', textAlign: 'center', color: '#fff' }}>
+            {errorMsg}
+          </p>
+        )}
 
         <p style={{ marginTop: '20px', textAlign: 'center' }}>
           Belum punya akun?{' '}

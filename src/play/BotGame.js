@@ -1,17 +1,47 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import modeImage from '../assets/ModeGame.png'; 
 import kembali from '../assets/kembali.png'; 
+import clickSound from '../sound/mixkit.wav'; 
+import bgMusic from '../sound/Shuffle_Up.mp3'; 
 
 function Play() {
   const navigate = useNavigate();
 
+  const [clickAudio] = useState(() => new Audio(clickSound));
+  const [bgAudio] = useState(() => {
+    const audio = new Audio(bgMusic);
+    audio.loop = true;
+    audio.volume = 0.5; // sesuaikan volume jika perlu
+    return audio;
+  });
+
+  useEffect(() => {
+    bgAudio.play().catch((e) => {
+      // Kadang autoplay ditolak browser, jadi kita bisa log atau abaikan
+      console.warn('Autoplay ditolak, akan diputar saat interaksi pengguna:', e);
+    });
+
+    return () => {
+      bgAudio.pause();
+      bgAudio.currentTime = 0;
+    };
+  }, [bgAudio]);
+
+  const playClickSound = () => {
+    clickAudio.currentTime = 0;
+    clickAudio.play();
+  };
+
   const handleSelectMode = (mode) => {
+    playClickSound();
+    bgAudio.pause(); // hentikan bgm saat pindah halaman
     navigate(`/game/${mode}`);
   };
 
   const handleBack = () => {
-    navigate(-1); 
+    bgAudio.pause();
+    navigate(-1);
   };
 
   return (
@@ -57,7 +87,7 @@ const styles = {
     padding: '1rem 2rem',
     fontSize: '1.25rem',
     fontWeight: 'bold',
-    backgroundColor: ' #00b894',
+    backgroundColor: '#00b894',
     border: 'none',
     borderRadius: '8px',
     color: 'white',

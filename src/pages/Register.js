@@ -10,7 +10,7 @@ import {
   setDoc,
   doc,
 } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth'; // Import sendEmailVerification
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -30,7 +30,6 @@ const Register = () => {
     setLoading(true);
 
     try {
-      // 1. Cek apakah username sudah digunakan di Firestore
       const usernameQuery = query(
         collection(db, 'users'),
         where('username', '==', form.username)
@@ -42,7 +41,6 @@ const Register = () => {
         return;
       }
 
-      // 2. Buat user di Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         form.email,
@@ -50,20 +48,16 @@ const Register = () => {
       );
       const user = userCredential.user;
 
-      // 3. Kirim email verifikasi
-      await sendEmailVerification(user); // Send verification email
+      await sendEmailVerification(user);
 
-      // 4. Simpan data user ke Firestore
       try {
         await setDoc(doc(db, 'users', user.uid), {
           username: form.username,
           email: form.email,
           totalScore: 0,
-          emailVerified: false, // Tambahkan status verifikasi email
+          emailVerified: false,
         });
 
-        // Simpan data user ke localStorage (pertimbangkan untuk tidak menyimpan emailVerified di localStorage
-        // jika Anda akan selalu mengambilnya dari Firestore atau Firebase Auth saat login)
         localStorage.setItem(
           'userProfile',
           JSON.stringify({ username: form.username, email: form.email, totalScore: 0, emailVerified: false })
@@ -74,7 +68,6 @@ const Register = () => {
         navigate('/login');
       } catch (firestoreError) {
         console.error('Error saat menyimpan data profil user ke Firestore:', firestoreError);
-        // Jika penyimpanan ke Firestore gagal, hapus user yang baru dibuat di Firebase Auth
         await user.delete();
         alert('Registrasi gagal. Terjadi masalah saat menyimpan data profil.');
       }
