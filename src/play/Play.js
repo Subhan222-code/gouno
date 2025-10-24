@@ -18,7 +18,7 @@ import tombol_bot from '../assets/mulai.png';
 import MULTIPLAYER from '../assets/logo.png';
 import Learderboard from '../assets/leaderboard_uno.png';
 import bgMusic from '../sound/uno_menu.mp3';
-import clickSound from '../sound/mixkit.wav'; 
+import clickSound from '../sound/mixkit.wav';
 
 const Play = () => {
   const navigate = useNavigate();
@@ -38,56 +38,153 @@ const Play = () => {
     <div
       onClick={(e) => e.stopPropagation()}
       style={{
-        backgroundColor: 'white',
-        borderRadius: 16,
-        padding: 20,
-        width: 300,
-        maxHeight: '70vh',
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(14px)',
+        borderRadius: 20,
+        padding: 28,
+        width: '90%',
+        maxWidth: 420,
+        maxHeight: '75vh',
         overflowY: 'auto',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
+        boxShadow: '0 8px 40px rgba(0,0,0,0.35)',
         position: 'relative',
+        animation: 'fadeIn 0.4s ease-in-out',
+        fontFamily: 'Poppins, sans-serif',
       }}
     >
+      {/* Tombol Close */}
       <button
         onClick={onClose}
         style={{
           position: 'absolute',
           top: 10,
-          right: 10,
+          right: 14,
+          background: 'linear-gradient(135deg, #ff3b3b, #b30000)',
+          color: 'white',
           border: 'none',
-          background: 'transparent',
-          fontSize: 20,
+          borderRadius: '50%',
+          width: 34,
+          height: 34,
+          fontSize: 18,
+          fontWeight: 'bold',
           cursor: 'pointer',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          transition: 'all 0.3s ease',
+        }}
+        onMouseOver={(e) => {
+          e.target.style.transform = 'scale(1.1)';
+          e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4)';
+        }}
+        onMouseOut={(e) => {
+          e.target.style.transform = 'scale(1)';
+          e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
         }}
         aria-label="Close leaderboard"
       >
         ×
       </button>
-      <h2 style={{ margin: 0, marginBottom: 12, textAlign: 'center', color: '#333' }}>Leaderboard</h2>
+
+      {/* Judul */}
+      <h2
+        style={{
+          margin: 0,
+          marginBottom: 22,
+          textAlign: 'center',
+          color: '#111',
+          fontSize: 24,
+          fontWeight: '700',
+          letterSpacing: '0.5px',
+          textShadow: '1px 1px 3px rgba(0,0,0,0.1)',
+        }}
+      >
+        🏆 Leaderboard
+      </h2>
+
+      {/* Isi leaderboard */}
       {entries.length === 0 ? (
-        <div style={{ textAlign: 'center', fontStyle: 'italic', color: '#666' }}>Tidak ada entri</div>
+        <div
+          style={{
+            textAlign: 'center',
+            fontStyle: 'italic',
+            color: '#666',
+            padding: '20px 0',
+          }}
+        >
+          Belum ada data skor.
+        </div>
       ) : (
-        entries.map((entry) => (
-          <div
-            key={entry.id}
-            style={{
-              padding: '6px 0',
-              borderBottom: '1px solid #eee',
-              display: 'flex',
-              justifyContent: 'space-between',
-              fontWeight: 'bold',
-              fontSize: 16,
-              color: '#444',
-            }}
-          >
-            <span>{entry.username}</span>
-            <span>{entry.totalScore ?? 0}</span>
-          </div>
-        ))
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            borderRadius: 12,
+            overflow: 'hidden',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+          }}
+        >
+          <thead>
+            <tr
+              style={{
+                background: 'linear-gradient(90deg, #ffb800, #ff4444)',
+                color: '#fff',
+                textAlign: 'left',
+              }}
+            >
+              <th style={{ padding: '10px 14px', width: '15%' }}>#</th>
+              <th style={{ padding: '10px 14px', width: '55%' }}>Username</th>
+              <th style={{ padding: '10px 14px', textAlign: 'right', width: '30%' }}>Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((entry, index) => {
+              let bg = 'transparent';
+              if (index === 0) bg = 'rgba(255, 215, 0, 0.25)'; // Emas
+              else if (index === 1) bg = 'rgba(192,192,192,0.25)'; // Perak
+              else if (index === 2) bg = 'rgba(205,127,50,0.25)'; // Perunggu
+
+              return (
+                <tr
+                  key={entry.id || index}
+                  style={{
+                    background: bg,
+                    borderBottom: '1px solid #ddd',
+                    transition: 'background 0.2s ease',
+                  }}
+                  onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.5)')}
+                  onMouseOut={(e) => (e.currentTarget.style.background = bg)}
+                >
+                  <td style={{ padding: '10px 14px', fontWeight: 'bold', color: '#222' }}>
+                    {index + 1}
+                  </td>
+                  <td style={{ padding: '10px 14px', color: '#333', fontWeight: '500' }}>
+                    {entry.username}
+                  </td>
+                  <td
+                    style={{
+                      padding: '10px 14px',
+                      textAlign: 'right',
+                      fontWeight: '700',
+                      color: '#111',
+                    }}
+                  >
+                    {entry.totalScore ?? 0}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       )}
+
+      {/* Animasi sederhana */}
+      <style>
+        {`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}
+      </style>
     </div>
   );
 

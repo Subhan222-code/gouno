@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import modeImage from '../assets/ModeGame.png'; 
-import kembali from '../assets/kembali.png'; 
-import clickSound from '../sound/mixkit.wav'; 
-import bgMusic from '../sound/Shuffle_Up.mp3'; 
+import modeImage from '../assets/ModeGame.png';
+import kembali from '../assets/kembali.png';
+import clickSound from '../sound/mixkit.wav';
+import bgMusic from '../sound/Shuffle_Up.mp3';
 
 function Play() {
   const navigate = useNavigate();
@@ -12,51 +12,72 @@ function Play() {
   const [bgAudio] = useState(() => {
     const audio = new Audio(bgMusic);
     audio.loop = true;
-    audio.volume = 0.5; // sesuaikan volume jika perlu
+    audio.volume = 0.5;
     return audio;
   });
 
+  // 🔊 Putar musik latar setelah interaksi pengguna
   useEffect(() => {
-    bgAudio.play().catch((e) => {
-      // Kadang autoplay ditolak browser, jadi kita bisa log atau abaikan
-      console.warn('Autoplay ditolak, akan diputar saat interaksi pengguna:', e);
-    });
+    const startMusic = () => {
+      bgAudio.play().catch((err) => {
+        console.warn('Autoplay ditolak, akan menunggu interaksi pengguna:', err);
+      });
+      document.removeEventListener('click', startMusic);
+    };
+
+    // Jika autoplay ditolak, kita tunggu klik pertama pengguna
+    document.addEventListener('click', startMusic);
 
     return () => {
       bgAudio.pause();
       bgAudio.currentTime = 0;
+      document.removeEventListener('click', startMusic);
     };
   }, [bgAudio]);
 
-  const playClickSound = () => {
+  const playClickSound = useCallback(() => {
     clickAudio.currentTime = 0;
-    clickAudio.play();
-  };
+    clickAudio.play().catch(() => {}); // abaikan error kecil autoplay
+  }, [clickAudio]);
 
-  const handleSelectMode = (mode) => {
+  const handleSelectMode = useCallback(
+    (mode) => {
+      playClickSound();
+      bgAudio.pause();
+      navigate(`/game/${mode}`);
+    },
+    [bgAudio, navigate, playClickSound]
+  );
+
+  const handleBack = useCallback(() => {
     playClickSound();
-    bgAudio.pause(); // hentikan bgm saat pindah halaman
-    navigate(`/game/${mode}`);
-  };
-
-  const handleBack = () => {
     bgAudio.pause();
     navigate(-1);
-  };
+  }, [bgAudio, navigate, playClickSound]);
 
   return (
     <div style={styles.container}>
-      <button onClick={handleBack} style={styles.backButton}>
+      <button onClick={handleBack} style={styles.backButton} aria-label="Kembali">
         <img src={kembali} alt="Kembali" style={styles.backIcon} />
       </button>
 
-      <img src={modeImage} alt="Mode" style={styles.image} />
+      <img src={modeImage} alt="Pilih Mode Permainan" style={styles.image} />
 
       <div style={styles.buttonGroup}>
-        <button style={styles.button} onClick={() => handleSelectMode('1v1')}>
+        <button
+          style={styles.button}
+          onClick={() => handleSelectMode('1v1')}
+          onMouseEnter={(e) => (e.target.style.backgroundColor = '#009e80')}
+          onMouseLeave={(e) => (e.target.style.backgroundColor = '#00b894')}
+        >
           1 vs 1
         </button>
-        <button style={styles.button} onClick={() => handleSelectMode('1v3')}>
+        <button
+          style={styles.button}
+          onClick={() => handleSelectMode('1v3')}
+          onMouseEnter={(e) => (e.target.style.backgroundColor = '#009e80')}
+          onMouseLeave={(e) => (e.target.style.backgroundColor = '#00b894')}
+        >
           1 vs 3
         </button>
       </div>
@@ -67,17 +88,20 @@ function Play() {
 const styles = {
   container: {
     minHeight: '100vh',
-    backgroundColor: '#1a1a1a',
+    background: 'linear-gradient(135deg, #0f2027, #203a43, #2c5364)',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
     color: 'white',
-    position: 'relative', 
+    position: 'relative',
+    fontFamily: 'Poppins, sans-serif',
   },
   image: {
     width: '300px',
     marginBottom: '2rem',
+    borderRadius: '12px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
   },
   buttonGroup: {
     display: 'flex',
@@ -92,7 +116,7 @@ const styles = {
     borderRadius: '8px',
     color: 'white',
     cursor: 'pointer',
-    transition: '0.2s ease',
+    transition: 'background-color 0.2s ease, transform 0.15s ease',
   },
   backButton: {
     position: 'absolute',
@@ -105,6 +129,7 @@ const styles = {
   backIcon: {
     width: '40px',
     height: '40px',
+    transition: 'transform 0.2s ease',
   },
 };
 

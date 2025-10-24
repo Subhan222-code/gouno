@@ -1,103 +1,127 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 
 const WinnerDisplay = ({ winner, username, scores, onRestartGame }) => {
-  if (!winner) {
-    return null; 
-  }
+  if (!winner) return null;
 
   return (
-    <div style={styles.winnerBanner}>
-      <div style={styles.winnerContent}>
-        <p style={styles.winnerText}>-- GAME OVER --</p>
-        <p style={styles.winnerSubText}>-- {winner.toUpperCase()} IS THE WINNER! --</p>
+    <div style={styles.overlay}>
+      <motion.div
+        style={styles.card}
+        initial={{ scale: 0.7, opacity: 0, rotateX: -20 }}
+        animate={{ scale: 1, opacity: 1, rotateX: 0 }}
+        transition={{ type: 'spring', stiffness: 120, damping: 10 }}
+      >
+        {/* Title Section */}
+        <motion.h2
+          style={styles.title}
+          animate={{
+            textShadow: [
+              '0 0 10px #fff',
+              '0 0 20px #ff0000',
+              '0 0 15px #ffcc00',
+              '0 0 10px #fff',
+            ],
+          }}
+          transition={{ repeat: Infinity, duration: 2 }}
+        >
+          🎉 GAME OVER 🎉
+        </motion.h2>
 
+        <p style={styles.winnerText}>
+          🏆 <span style={{ color: '#FFD700' }}>{winner.toUpperCase()}</span> IS THE WINNER! 🏆
+        </p>
+
+        {/* Scores */}
         {scores && (
-          <div style={styles.scoreDetails}>
-            <p style={styles.scoreTitle}>FINAL SCORES</p>
+          <motion.div
+            style={styles.scoreBox}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+          >
+            <h3 style={styles.scoreTitle}>FINAL SCORES</h3>
             <ul style={styles.scoreList}>
               <li style={styles.scoreItem}>
-                <span style={styles.scorePlayer}>{username.toUpperCase()}:</span>
-                <span style={styles.scoreValue}>{scores.player}</span>
+                <span>{username.toUpperCase()}</span>
+                <span>{scores.player}</span>
               </li>
               <li style={styles.scoreItem}>
-                <span style={styles.scorePlayer}>PLAYER 1 :</span>
-                <span style={styles.scoreValue}>{scores.bot}</span>
+                <span>PLAYER 1</span>
+                <span>{scores.bot}</span>
               </li>
             </ul>
-          </div>
+          </motion.div>
         )}
-        <button onClick={onRestartGame} style={styles.restartButton}>
-          PLAY AGAIN
-        </button>
-      </div>
+
+        {/* Play Again Button */}
+        <motion.button
+          style={styles.button}
+          whileHover={{
+            scale: 1.1,
+            background: 'linear-gradient(to right, #ff0000, #ffcc00)',
+            boxShadow: '0 0 25px rgba(255, 215, 0, 0.9)',
+          }}
+          whileTap={{ scale: 0.95 }}
+          onClick={onRestartGame}
+        >
+          🔁 PLAY AGAIN
+        </motion.button>
+      </motion.div>
     </div>
   );
 };
 
 const styles = {
-  winnerBanner: {
+  overlay: {
     position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'linear-gradient(to bottom right, #2c3e50, #34495e, #1a2c3e)',
+    inset: 0,
+    background: 'radial-gradient(circle at center, rgba(0,0,0,0.95), rgba(0,0,0,0.85))',
+    backdropFilter: 'blur(8px)',
     display: 'flex',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 100,
-    backdropFilter: 'blur(6px)',
+    zIndex: 9999,
   },
-  winnerContent: {
-    background: 'linear-gradient(160deg, #FF7F50 0%, #FFD700 100%)',
-    border: '5px solid #E67E22',
-    padding: '40px 60px',
-    borderRadius: 15,
+  card: {
+    background: 'linear-gradient(145deg, #8B0000, #FF4500, #FFD700)',
+    padding: '50px 70px',
+    borderRadius: 25,
     textAlign: 'center',
-    color: '#333',
-    boxShadow: '0 15px 40px rgba(0,0,0,0.5), inset 0 0 20px rgba(255,255,255,0.3)',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
+    boxShadow: '0 15px 45px rgba(0,0,0,0.6), inset 0 0 20px rgba(255,255,255,0.3)',
+    fontFamily: '"Poppins", sans-serif',
+    color: '#fff',
     maxWidth: '90%',
-    margin: '20px',
-    fontFamily: '"Press Start 2P", cursive',
-    textShadow: '3px 3px 0 rgba(0,0,0,0.3)',
-    transform: 'scale(1)',
-    animation: 'pulse 1.5s infinite alternate',
+    width: 520,
+    border: '3px solid rgba(255,255,255,0.2)',
+  },
+  title: {
+    fontSize: 40,
+    fontWeight: '900',
+    marginBottom: 15,
+    letterSpacing: 3,
+    textTransform: 'uppercase',
   },
   winnerText: {
-    fontSize: 38,
+    fontSize: 26,
     fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#7C0A02',
-    letterSpacing: '4px',
-    textShadow: '3px 3px #FFDDC1',
-  },
-  winnerSubText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 35,
-    color: '#004080',
-    letterSpacing: '3px',
-    textShadow: '2px 2px 0 #FFF, 4px 4px 0 #17A2B8', 
-  },
-  scoreDetails: {
-    width: '100%',
     marginBottom: 30,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    padding: '20px 30px',
-    borderRadius: 10,
-    border: '3px solid rgba(255,255,255,0.6)',
-    boxShadow: 'inset 0 0 15px rgba(0,0,0,0.6)',
+    color: '#FFF',
+    textShadow: '2px 2px 6px #000',
+  },
+  scoreBox: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 12,
+    padding: '20px',
+    marginBottom: 35,
+    boxShadow: 'inset 0 0 20px rgba(0,0,0,0.6)',
   },
   scoreTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 22,
     marginBottom: 15,
-    color: '#FFF',
-    letterSpacing: '3px',
-    textShadow: '2px 2px #C0392B',
+    color: '#FFD700',
+    letterSpacing: 2,
+    textShadow: '0 0 10px #000',
   },
   scoreList: {
     listStyle: 'none',
@@ -107,44 +131,24 @@ const styles = {
   scoreItem: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
+    padding: '10px 0',
+    fontSize: 20,
+    borderBottom: '1px solid rgba(255,255,255,0.2)',
+    color: '#FFF',
+  },
+  button: {
+    background: 'linear-gradient(to right, #27ae60, #2ecc71)',
+    border: 'none',
+    color: 'white',
+    padding: '16px 40px',
+    borderRadius: 12,
+    cursor: 'pointer',
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#E0E0E0',
-    textShadow: '1px 1px #A93226',
-  },
-  scorePlayer: {
-    textAlign: 'left',
-    flex: 1,
-  },
-  scoreValue: {
-    textAlign: 'right',
-  },
-  restartButton: {
-    marginTop: 40,
-    padding: '18px 40px',
-    fontSize: 24,
-    borderRadius: 10,
-    background: 'linear-gradient(to right, #1ABC9C, #2ECC71)',
-    color: 'white',
-    cursor: 'pointer',
-    border: 'none',
-    transition: 'background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease',
-    outline: 'none',
-    boxShadow: '0 8px 20px rgba(0,0,0,0.4)',
+    letterSpacing: 2,
     textTransform: 'uppercase',
-    letterSpacing: '1px',
-    fontWeight: 'bold',
-    '&:hover': {
-      background: 'linear-gradient(to right, #16A085, #27AE60)',
-      transform: 'translateY(-3px) scale(1.02)',
-      boxShadow: '0 12px 25px rgba(0,0,0,0.5)',
-    },
-    '&:active': {
-      transform: 'translateY(0) scale(0.98)',
-      boxShadow: '0 5px 15px rgba(0,0,0,0.3)',
-    },
+    boxShadow: '0 8px 20px rgba(0,0,0,0.5)',
+    transition: 'all 0.3s ease',
   },
 };
 

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import {
-  collection,
   doc,
   getDoc,
   setDoc,
@@ -192,43 +191,73 @@ function Multiplayer() {
   };
 
   const renderHome = () => (
-    <div style={{
-      textAlign: 'center',
-      marginTop: '60px',
-      color: 'white',
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        background: 'radial-gradient(circle at center, #ff1c1c, #000)',
+        color: 'white',
+        textAlign: 'center',
+      }}
+    >
       <img
         src={MULTIPLAYER_UNO}
         alt="Multiplayer Uno"
-        style={{ width: '300px', marginBottom: '30px' }}
+        style={{
+          width: '350px',
+          marginBottom: '40px',
+          borderRadius: '12px',
+          boxShadow: '0 0 20px rgba(255,255,255,0.2)',
+        }}
       />
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '20px',
+          width: '250px',
+        }}
+      >
         <button
-          style={{
-            backgroundColor: '#444',
-            color: 'white',
-            padding: '10px 20px',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            width: '9.5%'
-          }}
           onClick={() => setCurrentView('create')}
-        >
-          Buat Room
-        </button>
-        <button
           style={{
-            backgroundColor: '#444',
-            color: 'white',
-            padding: '10px 20px',
+            background: 'linear-gradient(90deg, #ffb800, #ff0000)',
+            color: '#fff',
+            fontWeight: 'bold',
+            fontSize: '1.1rem',
+            padding: '12px',
             border: 'none',
-            borderRadius: '8px',
+            borderRadius: '12px',
             cursor: 'pointer',
+            transition: '0.3s',
           }}
-          onClick={() => setCurrentView('join')}
+          onMouseOver={(e) => (e.target.style.transform = 'scale(1.05)')}
+          onMouseOut={(e) => (e.target.style.transform = 'scale(1)')}
         >
-          Gabung Room
+          ➕ Buat Room
+        </button>
+
+        <button
+          onClick={() => setCurrentView('join')}
+          style={{
+            background: 'linear-gradient(90deg, #00c3ff, #0044ff)',
+            color: '#fff',
+            fontWeight: 'bold',
+            fontSize: '1.1rem',
+            padding: '12px',
+            border: 'none',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            transition: '0.3s',
+          }}
+          onMouseOver={(e) => (e.target.style.transform = 'scale(1.05)')}
+          onMouseOut={(e) => (e.target.style.transform = 'scale(1)')}
+        >
+          🚪 Gabung Room
         </button>
       </div>
     </div>
@@ -261,7 +290,7 @@ function Multiplayer() {
   };
 
   return (
-    <div style={{ padding: 20, minHeight: '100vh', background: 'black' }}>
+    <div style={{ minHeight: '100vh', background: 'black' }}>
       {currentView === 'home' && renderHome()}
       {currentView === 'create' && (
         <CreateRoom
